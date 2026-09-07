@@ -1,0 +1,156 @@
+# 本地联机后端
+
+此阶段交付常驻 Node.js 后端、浏览器/Node 共用客户端适配器、真实 WebSocket 集成测试和并发自检。原来的 `5173` Three.js 工作室仍使用单机 `WorkshopApplication`；本次没有将多人界面、四人场景或多人镜头接入页面。服务端部署、域名与云服务不在此次范围。
+
+后续场景采用已经确认的四人手作店：扩大活动空间，完整室内建筑，按各自镜头动态隐藏遮挡墙顶；四人共拼一块 50×50 板，保留统一 2.6 mm Mini、美术管线与无抖动效果。
+
+## 本机启动
+
+后端需要 **Node.js 24+**，使用内置 `node:sqlite`。本机验证版本为 24.13.0；它可能输出 SQLite ExperimentalWarning。单机前端原有启动方式保持不变。
+
+```powershell
+npm ci
+npm run start:server
+```
+
+默认监听 `http://127.0.0.1:2567`，只在本机提供服务。开发时可以使用 `npm run dev:server` 自动重启。`GET /health` 返回服务存活状态和协议版本；这不是数据库健康/生产就绪检查。
+
+第一次启动自动创建 `data/multiplayer.sqlite`。目录与 SQLite 数据、WAL 文件已经加入忽略规则，不要提交到 Git。不要复制一个正在写入的单独 `.sqlite` 文件当作完整备份；本地人工备份先正常停止服务，再复制数据库目录。
+
+| 环境变量 | 默认值 | 用途 |
+| --- | --- | --- |
+| `MULTIPLAYER_PORT` | `2567` | 后端端口 |
+| `MULTIPLAYER_HOST` | `127.0.0.1` | 监听地址 |
+| `MULTIPLAYER_DB` | `data/multiplayer.sqlite` | SQLite 文件路径 |
+| `MULTIPLAYER_ORIGINS` | 本机 `5173`、`4173` 开发来源 | 逗号分隔的浏览器来源白名单 |
+
+服务使用 Socket.IO 4.8.3 的 WebSocket transport，不能用原生 WebSocket 客户端直接发送 JSON 代替 Socket.IO 协议。
+
+## 运行测试
+
+```powershell
+npm run test:multiplayer
+npm run selfcheck:multiplayer
+npm test
+npm run build
+```
+
+测试自行启动 `127.0.0.1` 随机空闲端口上的后端，使用临时 SQLite 文件和独立客户端，不需要预先启动 `2567`，也不会连接现有浏览器、读取页面存档或修改正式数据库。
+
+- `test:multiplayer`：14 项测试，含四名实际 Socket.IO 客户端同时修改棋盘、座位、身份接替、房间隔离、冲突、去重、个人撤销/重做、断线、丢补丁恢复、换图投票、旧草稿恢复、1159 颗完整合作熨烫与收藏。
+- 重启测试覆盖正常重启和强制结束测试专用子进程；后者在进程被结束前已收到操作确认，不依靠退出事件补存档。
+- 持久化测试包括提交前故障与事务执行中唯一约束失败，验证回滚后棋盘和操作回执一致。
+- `selfcheck:multiplayer`：默认 25 房、100 个真实客户端；每房一名写入者和三名订阅者，共提交 500 条操作。逐个检查客户端接收补丁后得到的格位与版本，而非靠最后重新下载棋盘掩盖广播问题。
+- 报告写入 `artifacts/multiplayer/load-report.json`。可以通过 `MULTIPLAYER_LOAD_ROOMS` 调整到 1～50 房。
+
+并发自检是本机传输、持久化与广播检查，不等于公网延迟测试、浏览器帧率测试或生产容量承诺。原 Three.js 页面端到端流程需在之后接入多人 UI 后单独验收。
+
+## 文件边界
+
+| 文件 | 职责 |
+| --- | --- |
+| `src/Core/Multiplayer/RoomState.ts` | 引擎无关共享作品规则，逐格版本与个人历史、熨烫状态 |
+| `shared/MultiplayerProtocol.ts` | 协议 1、运行时严格校验、请求/回执/快照/补丁类型 |
+| `server/RoomService.ts` | 房间成员授权、串行命令处理、投票、移动和座位、广播 |
+| `server/SqliteStore.ts` | 匿名身份、草稿、事务、操作去重和共同收藏 |
+| `server/server.ts` | Socket.IO、请求大小限制、来源检查、连接与消息限流 |
+| `server/main.ts` | 本地后端启动和退出 |
+| `src/Networking/MultiplayerClient.ts` | 连接、自动重入房间、补丁应用、版本缺口重新同步 |
+
+持久化接口目前是同步接口，与单进程房间串行执行配合。未来切 PostgreSQL 时，需要同时把存储调用改为异步，并增加每房命令队列；不能在 `await` 期间允许两条命令基于同一旧状态同时提交。本阶段没有实现 PostgreSQL 或多实例房间路由。
+
+## 前端接入示例
+
+```ts
+import { MultiplayerClient } from './src/Networking/MultiplayerClient';
+
+const client = new MultiplayerClient('http://127.0.0.1:2567', { nickname: '豆豆' });
+client.onSession = (session) =>
+{
+    // 宿主保存 token 供下次访问恢复身份；不要展示或写入日志。
+};
+client.onState = (snapshot) =>
+{
+    // 渲染快照。选色、光标、镜头仍分别属于各自玩家。
+};
+await client.connect();
+const room = await client.create({ opId: crypto.randomUUID(), name: '一起拼草莓' });
+// 另一客户端：await client.join(room.roomId);
+await client.seat(0);
+const index = room.pattern.targetNumbers.findIndex(Boolean);
+await client.command({
+    opId: crypto.randomUUID(), roomId: room.roomId, workId: room.work.id,
+    type: 'paint', strokeId: crypto.randomUUID(),
+    edits: [{ index, color: room.pattern.targetNumbers[index], expectedVersion: room.work.cellVersions[index] }]
+});
+```
+
+创建房间返回的 `roomId` 是当前邀请标识，可通过链接携带。暂未添加短房间码、公开大厅或邀请界面。各玩家需使用不同 token；同一 token 新建连接会接替原连接，而不是占用两个座位。
+
+前端宿主负责匿名凭证及未确认操作的持久保存；适配器自身不读写 `localStorage`。适配器支持同一实例的自动重连，带已有 token 的新实例可以恢复身份，再调用 `join`。未接入的页面不会自动把本地草稿上传后端。
+
+## 协议
+
+握手：`{ protocolVersion: 1, nickname?: string, token?: string }`。昵称 1～24 字符。首次连接生成 256 位随机 token；数据库仅存其 SHA-256。携带未知 token 会拒绝，不会默默创建新身份。
+
+所有有状态请求必须提供回调，结果统一为 `{ ok: true, value }` 或 `{ ok: false, code }`。缺少回调不会执行修改。身份以连接认证结果为准，请求不能指定别人的玩家 ID。
+
+| 客户端事件 | 请求 | 成功值 |
+| --- | --- | --- |
+| `session:get` | 无 | 身份与恢复凭证 |
+| `room:create` | `opId, name, patternId?` | 完整房间快照 |
+| `room:join` | `roomId` | 完整房间快照 |
+| `room:leave` | 无 | `null` |
+| `room:snapshot` | 无 | 当前房间完整快照 |
+| `room:drafts` | 无 | 当前房间最近至多 100 条记录中的历史未完成草稿摘要 |
+| `room:command` | 见下表 | `opId, version, skippedIndices, duplicate` |
+| `player:input` | `sequence, directionX, directionZ, selectedColor, cursor` | `null` |
+| `player:seat` | `seat: 0..3` 或 `null` | `null` |
+| `collection:list` | 无 | 此身份最近至多 256 件共同作品 |
+
+每个作品命令都有 `opId, roomId, workId, type`。`opId` 在玩家身份内唯一；用同一个 ID 改变内容会被拒绝。旧命令成功回执可在重连/重启后重查，但新操作必须使用当前作品 `workId`。
+
+| 命令 type | 额外字段 | 规则 |
+| --- | --- | --- |
+| `paint` | `strokeId, edits: [{ index, color, expectedVersion }]` | 每批 1～128 个不同格位；0 为擦除；空背景禁止放豆；过期格位跳过，其余独立应用 |
+| `endStroke` | 无 | 连续批次相同 `strokeId` 组成一笔，松手结束 |
+| `undo` / `redo` | 无 | 自己最近 30 笔，逐格条件回滚，跳过他人修改 |
+| `acquireIron` | 无 | 图案完全正确才能开始；获得 5 秒持有凭证 |
+| `iron` | `leaseToken, indices` | 每批至多 128 格；验证持有人和有效期，操作续期 |
+| `releaseIron` | `leaseToken` | 保留覆盖并允许别人接手 |
+| `proposePattern` | `patternId` | 房主提出新图/重开；所有在线投票者同意才切换 |
+| `proposeDraft` | `draftId` | 房主提出恢复房间历史草稿，同样投票 |
+| `votePattern` | `proposalId, approve` | 一票拒绝取消提议；提议 30 秒到期 |
+
+创建和换图均不提供已经下架的五款“轻松小图案”。图案内容签名在恢复时校验，客户端不能提供任意图案覆盖官方目标数据。
+
+提议期间冻结作品操作；成员加入或离开会取消提议，避免已同意的参与者面对变化后的内容。恢复历史草稿产生新的作品代次，保留格位、熨烫覆盖与参与者，清空操作历史及格位版本；迟到的旧代次消息不能修改它。
+
+服务端事件：
+
+- `room:snapshot`：加入、成员/房主变化、切图等结构变化。包含 pattern、公开 work、版本、持有凭证、提议和玩家，不包含私有撤销历史或其他人的恢复 token。
+- `room:patch`：持久命令产生的连续版本及改变的格位、覆盖和制作阶段。
+- `room:presence`：20 Hz 可丢弃的位置/光标状态。
+- `session:replaced`：同身份的新连接接替旧连接。
+
+## 一致性与恢复
+
+每个作品命令先修改一份候选状态，再以一个 SQLite 事务保存房间、作品、去重回执和可能产生的成品/收藏关联。事务提交后才替换内存状态并广播、确认。失败则丢弃候选状态。数据库采用 WAL 与 `synchronous=FULL`；当前机器磁盘损坏等灾难恢复仍需独立备份。
+
+整笔撤销不是整板快照覆盖。每个修改保存原值、原版本、新值和写入版本。只撤回仍属于该笔操作的格位；自己连续撤销可以沿历史链推进，别人的改写即使改回相同颜色也不会被误认为未修改。
+
+版本缺口直接下载全量快照，当前没有实现逐条历史事件补发。2500 格板面适合这个初始策略。客户端本地即时预测及未确认操作覆盖层由后续 UI 接入实现，目前适配器呈现的是服务端确认状态。
+
+连接断开立即停止移动并释放熨斗；座位保留 60 秒。房主转交在线成员。最后一人离开后，保留期结束卸载房间内存，作品仍在数据库。重启后位置回到出生点、需重新入座，作品、个人操作历史和收藏恢复；进行中的笔画被收束，熨斗需重新领取。
+
+客户端对确认超时重试一次，始终使用原 ID 和原请求。若刷新页面，宿主应从自己的待确认队列找回原请求再查/重试；本适配器没有把待确认队列自动写入浏览器存储。检测到掉线时拒绝新修改，避免离线积累的笔画在别人继续制作后批量覆盖。
+
+## 移动与当前边界
+
+客户端仅提交水平移动方向，服务器以自己的时钟按 20 Hz 推进，速度 2 单位/秒，单步时间上限 0.1 秒，250 毫秒无新输入自动停下。序号过期的输入忽略。客户端可以根据自己的相机换算方向，但不能提交时间、位置或速度。
+
+后端目前使用原工作室边界、一个中央桌面的矩形碰撞和四个座位坐标。坐下要求距离在 1.5 单位内，座位互斥；制作需要入座。扩大场景时应将这份碰撞和锚点替换为与美术布局共用的数据，不要分别写两份坐标。
+
+每连接每秒最多处理 100 条有回执消息，每条消息最大 64 KiB；每身份最多创建 20 个房间。该版本面向本机开发与私下联调，尚未实现正式账号、跨设备找回身份、公开匹配、封禁、房间踢人、作品删除、操作记录清理、分布式房间所有权或生产级入口防滥用。
+
+本次测试是后端与客户端协议测试。多人 Three.js 页面、四人镜头/墙体剖视、输入预测与回滚显示、前端待确认队列，属于接下来的接入工作。

@@ -2,6 +2,8 @@
 
 独立的网页拼豆工作室，用来快速迭代数字拼豆玩法、微缩场景与手绘渲染。纯前端、本地存档，使用 Three.js + TypeScript + Vite；不需要 Cocos、父项目或后端。
 
+仓库另含可独立运行的四人联机后端与客户端适配器。当前工作室页面仍为单机，尚未接入多人 UI。后端使用 Node.js 24+、Socket.IO 与本地 SQLite；运行 `npm run start:server`，测试运行 `npm run test:multiplayer` 和 `npm run selfcheck:multiplayer`。详见 [联机后端与接入说明](docs/MULTIPLAYER.md)。
+
 ![微缩拼豆工作室](docs/images/workshop.png)
 
 ## 运行
