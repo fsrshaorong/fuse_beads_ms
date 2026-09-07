@@ -87,6 +87,21 @@ try
     await page.setContent(html);
     await page.locator('img').evaluateAll((images) => Promise.all(images.map((image) => image.decode())));
     await page.screenshot({ path: fileURLToPath(new URL('comparison.png', output)), fullPage: true });
+    const detailed = [
+        ['mini-50', '莓果小物'], ['duck', '池塘小鸭'], ['cat', '奶油虎斑猫'], ['plant', '窗边花叶'],
+        ['balloon', '拼布热气球'], ['house', '花园小屋'], ['rainbow', '云端彩虹'], ['island', '月光小岛']
+    ];
+    const gallery = `<!doctype html><html lang="zh"><meta charset="utf-8"><style>
+        *{box-sizing:border-box}body{margin:0;padding:30px;background:#faf3e9;color:#604751;font-family:"Microsoft YaHei",sans-serif}
+        h1{font-size:25px;margin:0 0 10px}p{font-size:13px;color:#8f7770;margin:0 0 22px}.gallery{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}
+        article{background:#fffaf4;border:1px solid #e8daca;border-radius:12px;overflow:hidden}img{display:block;width:100%}
+        h2{font-size:15px;margin:0 16px 8px}small{display:block;font-size:11px;color:#8f7770;margin:0 16px 18px}
+        </style><h1>更细致的拼豆图案 · 50 × 50</h1><p>2.6 mm Mini · 同一物理板和相机 · 实际成品网格与网页材质的独立组件渲染</p>
+        <div class="gallery">${detailed.map(([key, name]) => `<article><img src="${result.images[`${key}-fused`]}" alt="${name}"><h2>${name}</h2><small>50 × 50 · ${result.measurements[key].rawCount} 颗</small></article>`).join('')}</div>`;
+    await page.setViewportSize({ width: 1560, height: 1050 });
+    await page.setContent(gallery);
+    await page.locator('img').evaluateAll((images) => Promise.all(images.map((image) => image.decode())));
+    await page.screenshot({ path: fileURLToPath(new URL('detailed-gallery.png', output)), fullPage: true });
     delete result.images;
     Object.assign(report, result);
     report.isolation = { syntheticPage: true, storageBlocked: true,
@@ -370,7 +385,14 @@ async function runChecks(threeUrl)
             originalSignature: '0b8d60982007f653fca6fee2ee3b6f8745a29a7ef9a6bee57e1a808bbe25a565' },
         { key: 'legacy-29', id: 'atelier-strawberry-charm-29-v1', width: 29, count: 320,
             originalSignature: 'ec04b3c21e284e5d1ede9db25d8b42a50ae740e248bb618258c25405814bf76d' },
-        { key: 'mini-50', id: 'atelier-strawberry-mini-50-v1', width: 50, count: 1159 }
+        { key: 'mini-50', id: 'atelier-strawberry-mini-50-v1', width: 50, count: 1159 },
+        { key: 'duck', id: 'atelier-pond-duck-50-v1', width: 50, count: 1203 },
+        { key: 'cat', id: 'atelier-tabby-cat-50-v1', width: 50, count: 1331 },
+        { key: 'plant', id: 'atelier-flower-pot-50-v1', width: 50, count: 1116 },
+        { key: 'balloon', id: 'atelier-patchwork-balloon-50-v1', width: 50, count: 1064 },
+        { key: 'house', id: 'atelier-garden-house-50-v1', width: 50, count: 1389 },
+        { key: 'rainbow', id: 'atelier-rainbow-clouds-50-v1', width: 50, count: 1180 },
+        { key: 'island', id: 'atelier-moonlit-island-50-v1', width: 50, count: 1677 }
     ];
     const snapshots = {};
     const frames = {};
@@ -433,7 +455,7 @@ async function runChecks(threeUrl)
     }
     for (let cycle = 0; cycle < 3; cycle += 1)
     {
-        for (const key of ['legacy-16', 'legacy-29', 'mini-50'])
+        for (const { key } of scenarios)
         {
             sync(snapshots[key].raw);
             check(`switch ${cycle + 1} → ${key}: complete original frame returns`, pixelDifference(frames[`${key}-raw`], read()) === 0);

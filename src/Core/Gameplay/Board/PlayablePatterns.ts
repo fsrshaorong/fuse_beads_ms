@@ -1,4 +1,5 @@
 import type { NumberedBeadPaletteEntry } from './NumberedBeadBoard';
+import { DETAILED_PATTERN_CATALOG } from './DetailedPatterns';
 import {
     STARTER_PATTERN_CATALOG,
     findStarterPattern
@@ -202,10 +203,11 @@ export const MINI_STRAWBERRY_PATTERN: StarterPatternCatalogEntry = Object.freeze
 /** Applies only before an existing local save restores its selected pattern. */
 export const DEFAULT_PLAYABLE_PATTERN: StarterPatternCatalogEntry = MINI_STRAWBERRY_PATTERN;
 
-/** New content precedes the fourteen immutable patterns used by existing local saves. */
+/** Higher-resolution editions precede immutable patterns used by existing local saves. */
 export const PLAYABLE_PATTERN_CATALOG: readonly StarterPatternCatalogEntry[] =
     Object.freeze([
         MINI_STRAWBERRY_PATTERN,
+        ...DETAILED_PATTERN_CATALOG,
         STRAWBERRY_CHARM_PATTERN,
         PIXEL_HEART_PATTERN,
         ...STARTER_PATTERN_CATALOG

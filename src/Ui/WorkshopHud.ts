@@ -1,4 +1,5 @@
 import type { WorkshopCommand, WorkshopReadModel } from '../App/WorkshopApplication';
+import { LEGACY_COMPLEX_PATTERN_IDS } from '../Core/Gameplay/Board/DetailedPatterns';
 import { getBeadColor, getBeadColorName } from '../Rendering/BeadPalette';
 import { BEAD_DIMENSIONS } from '../Rendering/BeadDimensions';
 import { DEFAULT_PAINTERLY_PROFILE } from '../Rendering/PainterlyMaterials';
@@ -322,9 +323,28 @@ export class WorkshopHud
 
         const grid = this.require('#pattern-grid');
         grid.replaceChildren();
+        const archive = document.createElement('details');
+        archive.className = 'pattern-archive';
+        archive.open = LEGACY_COMPLEX_PATTERN_IDS.includes(model.pattern.patternId);
+        const archiveTitle = document.createElement('summary');
+        archiveTitle.textContent = '旧版图案 · 保留原来的制作进度';
+        const archiveGrid = document.createElement('div');
+        archiveGrid.className = 'pattern-grid';
+        archive.append(archiveTitle, archiveGrid);
+        let currentGroup = '';
 
         for (const pattern of model.patterns)
         {
+            const legacy = LEGACY_COMPLEX_PATTERN_IDS.includes(pattern.patternId);
+            const group = pattern.width >= 40 ? '细致图案 · 50 × 50' : '轻松小图案';
+            if (!legacy && group !== currentGroup)
+            {
+                const heading = document.createElement('h3');
+                heading.className = 'pattern-group-title';
+                heading.textContent = group;
+                grid.append(heading);
+                currentGroup = group;
+            }
             const button = document.createElement('button');
             button.className = 'pattern-option';
             const canvas = document.createElement('canvas');
@@ -334,7 +354,7 @@ export class WorkshopHud
             const name = document.createElement('strong');
             name.textContent = pattern.name;
             const count = document.createElement('small');
-            count.textContent = `${pattern.width} × ${pattern.height} · ${pattern.palette.length} 色`;
+            count.textContent = `${pattern.width} × ${pattern.height} · ${pattern.targetNumbers.filter(Boolean).length} 颗 · ${pattern.palette.length} 色`;
             const specification = document.createElement('small');
             specification.textContent = beadSpecification();
             button.append(canvas, name, count, specification);
@@ -343,8 +363,9 @@ export class WorkshopHud
                 this.actions.dispatch({ type: 'selectPattern', patternId: pattern.patternId });
                 this.patternDialog.close();
             });
-            grid.append(button);
+            (legacy ? archiveGrid : grid).append(button);
         }
+        grid.append(archive);
 
         this.open(this.patternDialog);
     }

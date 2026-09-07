@@ -28,7 +28,7 @@ npm run preview
 
 - 工作室：WASD 走动，右键拖动观察，滚轮调整距离；走近工作台按 E 坐下。
 - 桌面：点击棋盘或向前滚轮，沿同一摄影机平滑进入拼豆；进入的第一次点击不会落豆。
-- 拼豆：15 张图案全部使用 2.6 mm Mini 豆与 52×52 钉板。新访客从 50×50「莓果小物」开始，1159 颗、6 色、背景留空。旧 14 张图案和已有存档保留原格数与颜色，不放大复制。数字选色，点击或连续拖动放豆；B 放豆、X 擦除，支持整笔撤销/重做。错色保留目标编号。
+- 拼豆：22 张图案全部使用 2.6 mm Mini 豆与 52×52 钉板。选图页优先展示 8 款 50×50 细致图案，再展示 5 款轻松小图；9 款较粗的复杂旧图收在可展开的“旧版图案”中，进度继续保留。新访客从 1159 颗的「莓果小物」开始。数字选色，点击或连续拖动放豆；B 放豆、X 擦除，支持整笔撤销/重做。错色保留目标编号。
 - 近景：滚轮连续缩放；WASD 或空格拖动平移。拉远到全板后停稳，再向后滚动返回桌面；E 起身。
 - 熨烫：图案正确后按住拖动熨斗，经过的豆逐格压低、缩孔、摊开上缘，松开暂停，完成后收进本地收藏与陈列架。
 - 美术：右上按钮调整笔触、暖光、阴影及描边粗细；房间与未熨烫豆保留轮廓，成品关闭逐豆描边，让融合后的色面更连贯。“恢复参考效果”恢复材质与描边默认值。模型、笔触和描边没有时间抖动。
@@ -44,6 +44,7 @@ npm run preview
 | 世界、桌面、拼豆的连续镜头 | `src/Scene/WorkshopCamera.ts` |
 | 家具、人物、场景色板与建模 | `src/Scene/WorkshopEnvironment.ts` |
 | 固定毫米比例、Blender 模型、实例化拼豆 | `src/Rendering/BeadDimensions.ts`、`BeadModels.ts`、`BeadBoardView.ts` |
+| 复杂图案原始绘制与生成数据 | `scripts/generate-detailed-patterns.mjs`、`src/Core/Gameplay/Board/DetailedPatternData.ts` |
 | 参考配置、笔触与光影公式 | `src/Rendering/ReferenceProfile.ts`、`PainterlyShaders.ts`、`PainterlyMaterials.ts` |
 | 五盏灯、阴影与颜色输出 | `src/Rendering/PainterlyLighting.ts` |
 | 家具、人物和实例化拼豆的稳定描边 | `src/Rendering/PainterlyOutline.ts` |
@@ -55,6 +56,10 @@ npm run preview
 拼豆由 Blender 参数化生成，网页统一加载 Mini 未熨烫和成品网格：未熨烫外径 2.61 mm、高 2.8 mm，钉板外宽 145 mm、52×52 钉位、节距 2.7 mm。所有图案、桌面散豆和收藏使用同一规格，换图不改变豆径或板大小。旧图仍按原格位展示，因节距变小，其实际面积比旧 Midi 版本更小。公开尺寸、孔径和钉距等估值，以及重建方法见 [拼豆模型说明](docs/BEAD_MODELS.md)。
 
 新草莓的有效轮廓为 40×44，增加双色叶脉、弧形高光和 19 组奶油籽。旧草莓有效轮廓为 21×24；只移动相机或把旧格复制成更小的豆子，不能增加这些图案细节。新内容使用独立 ID 和色号，旧图案、颜色与存档签名保持原值。
+
+小鸭、猫脸、盆栽、热气球、小屋、彩虹云和夜空小岛也已按 50×50 重绘，增加各自的轮廓与内部细节，每件约 1000～1700 颗。复杂主题优先从 50×50 开始，简单图形使用较小格数；尺寸与制作规范见 [图案美术说明](docs/PATTERN_ART.md)。
+
+![八款50格图案的实际成品组件渲染](docs/images/detailed-patterns.png)
 
 ![相同物理板宽与相机下的统一 Mini 图案与成品对照](docs/images/mini-density-comparison.png)
 
