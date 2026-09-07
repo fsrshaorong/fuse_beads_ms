@@ -16,6 +16,46 @@
 
 开发和打包使用项目 Node.js 环境；联机后端需要 Node.js 24+。
 
+### 一键自动出包
+
+在 Windows 安装 Node.js 24+ 后，于仓库运行：
+
+```powershell
+npm run desktop:release
+```
+
+入口为 `scripts/release-windows.ps1`。默认依次执行 `npm ci`、45 项测试、TypeScript 检查、网页与 Electron 构建、Windows x64 打包、ZIP 压缩和 SHA256 校验文件生成。任一步失败立即以非零退出码停止，适合后续接 CI；不自动上传或发布。
+
+首次安装依赖或下载 Electron 运行时需要网络。打包器使用锁定版本 Electron npm 包自带的官方校验值验证运行时；运行时缓存命中后不再联网获取校验清单。依赖和缓存齐备时可用 `-SkipInstall` 重复出包。
+
+常用参数：
+
+```powershell
+# 本地依赖已经安装且没有变化时，跳过重新安装
+npm run desktop:release -- -SkipInstall
+
+# 归档前额外跑真实 exe：保存恢复、双窗口联机与身份隔离
+npm run desktop:release -- -SkipInstall -VerifyDesktop
+
+# 从任意工作目录调用，脚本自动定位仓库
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File "F:\learn\fuse_beads\fuse_beads_ms\scripts\release-windows.ps1" -VerifyDesktop
+```
+
+`-SkipTests` 可跳过单元/协议测试，类型检查和构建仍会执行；正常出包建议保持测试开启。`-VerifyDesktop` 使用临时数据目录和临时后端，不要求登录 Steam，不读取当前玩家存档。默认脚本不执行这个较慢的桌面流程测试。
+
+产物位于 `release/`，文件名包含 `package.json` 版本号、UTC 时间和唯一后缀：
+
+| 产物 | 用途 |
+| --- | --- |
+| `fuse-beads-ms-版本-win-x64-时间-后缀.zip` | 可分发的完整客户端，解压后启动 exe |
+| 同名 `.zip.sha256` | ZIP 文件的 SHA256 校验值 |
+| 同名 `.json` | 构建时间、Git 提交、工作区是否有未提交修改、工具版本和测试状态 |
+| `builds/同名目录/Fuse Beads MS-win32-x64/` | 本次未压缩程序，内含相同的 `build-info.json` |
+
+每次自动出包创建独立目录，保留历史包，也不会覆盖正在试玩的旧 exe。同一仓库的一键出包由文件锁防止并发；不要同时运行底层 `desktop:build` / `desktop:package`，它们共用 `.desktop/`。历史包需要时可自行清理。工作区未提交修改允许打包，并在构建信息中明确标记。
+
+### 底层构建命令
+
 ```powershell
 npm ci
 npm run desktop:package

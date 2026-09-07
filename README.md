@@ -32,6 +32,8 @@ npm run preview
 
 已增加 Electron 客户端，复用网页的玩法、模型和渲染，支持单机离线启动、独立文件存档、F11 全屏及双客户端联机测试。
 
+自动出包用 `npm run desktop:release`（Windows、Node.js 24+）：安装锁定依赖 → 测试 → 构建 → Windows 打包 → ZIP 与 SHA256。每次输出到 `release/` 下独立版本目录；可加 `-- -SkipInstall -VerifyDesktop` 使用现有依赖并额外验证真实 exe。脚本见 [release-windows.ps1](scripts/release-windows.ps1)，完整参数见 [客户端说明](docs/DESKTOP.md#一键自动出包)。
+
 ```powershell
 npm run desktop:package
 & '.\release\Fuse Beads MS-win32-x64\FuseBeadsMS.exe'

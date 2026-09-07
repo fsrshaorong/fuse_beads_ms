@@ -9,7 +9,7 @@ import { startWorkshopServer } from '../server/server';
 const output = resolve('artifacts/desktop');
 const temporary = await mkdtemp(join(tmpdir(), 'beads-desktop-e2e-'));
 await mkdir(output, { recursive: true });
-const executablePath = resolve('release/Fuse Beads MS-win32-x64/FuseBeadsMS.exe');
+const executablePath = resolve(process.env.ATELIER_DESKTOP_EXE ?? 'release/Fuse Beads MS-win32-x64/FuseBeadsMS.exe');
 const serverErrors: string[] = [];
 const backend = await startWorkshopServer({ port: 0, databasePath: join(temporary, 'room.sqlite'),
     allowedOrigins: ['atelier://game'], onError: (error) => serverErrors.push(String(error)) });

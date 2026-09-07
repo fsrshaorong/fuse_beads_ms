@@ -1,10 +1,20 @@
 import { packager } from '@electron/packager';
 import { cp, readFile, writeFile } from 'node:fs/promises';
-import { resolve } from 'node:path';
+import { isAbsolute, relative, resolve } from 'node:path';
 
 const source = JSON.parse(await readFile('package.json', 'utf8'));
-const outputs = await packager({ dir: resolve('.desktop'), out: resolve('release'), name: 'Fuse Beads MS',
+const installedElectron = JSON.parse(await readFile('node_modules/electron/package.json', 'utf8'));
+if (installedElectron.version !== source.devDependencies.electron) { throw new Error('Run npm ci to install the locked Electron version.'); }
+// The locked Electron npm package ships the release hashes, so a verified cache hit needs no network.
+const checksums: Record<string, string> = JSON.parse(await readFile('node_modules/electron/checksums.json', 'utf8'));
+const archiveName = `electron-v${installedElectron.version}-win32-x64.zip`;
+if (!/^[a-f0-9]{64}$/i.test(checksums[archiveName] ?? '')) { throw new Error('Electron release checksum is missing.'); }
+const outputRoot = resolve(process.env.ATELIER_PACKAGE_OUT ?? 'release');
+const outputChild = relative(resolve('release'), outputRoot);
+if (outputChild.startsWith('..') || isAbsolute(outputChild)) { throw new Error('Package output must stay within release/'); }
+const outputs = await packager({ dir: resolve('.desktop'), out: outputRoot, name: 'Fuse Beads MS',
     platform: 'win32', arch: 'x64', electronVersion: source.devDependencies.electron,
+    download: { checksums },
     asar: { unpack: '**/*.{node,dll,so,dylib,lib}' }, prune: false, overwrite: true,
     executableName: 'FuseBeadsMS', appVersion: source.version,
     win32metadata: { ProductName: 'Fuse Beads MS', FileDescription: '豆间 · 手作工作室' } });

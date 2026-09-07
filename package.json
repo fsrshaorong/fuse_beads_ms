@@ -13,6 +13,7 @@
         "desktop:build": "npm run build && tsx scripts/build-desktop.ts",
         "desktop:start": "electron .desktop",
         "desktop:package": "npm run desktop:build && tsx scripts/package-desktop.ts",
+        "desktop:release": "powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/release-windows.ps1",
         "desktop:steam": "electron .desktop --steam-app-id=480 --steam-overlay",
         "selfcheck:desktop": "tsx scripts/desktop-selfcheck.ts",
         "selfcheck:desktop-steam": "tsx scripts/desktop-steam-selfcheck.ts",
