@@ -24,11 +24,11 @@ import type {
 import { getBeadColor } from '../Rendering/BeadPalette';
 import type { PainterlyMaterials } from '../Rendering/PainterlyMaterials';
 import type { BeadModels } from '../Rendering/BeadModels';
-import { BOARD_SIZE, BOARD_SURFACE_Y, getBeadDimensions, MILLIMETRES_TO_WORLD } from '../Rendering/BeadDimensions';
-import type { BeadFormat } from '../Rendering/BeadDimensions';
+import { BEAD_PITCH, BEAD_TOP_Y, BOARD_SIZE } from '../Rendering/BeadDimensions';
 
 const MAXIMUM_DISPLAYED_ARTWORKS = 3;
 const PAPER_CLEARANCE = 0.002;
+const PAPER_HEIGHT = BEAD_TOP_Y + PAPER_CLEARANCE;
 const SOLE_CLEARANCE = 0.0006;
 
 /** Displays a physical finishing tool and the player's actual frozen artwork records. */
@@ -42,7 +42,7 @@ export class FinishingView
     private readonly ownedGeometries: BufferGeometry[] = [];
     private readonly ownedMaterials: MeshStandardMaterial[] = [];
     private readonly displayPosition: Vector3;
-    private readonly displayBeadGeometries: Readonly<Record<BeadFormat, BufferGeometry>>;
+    private readonly displayBeadGeometry: BufferGeometry;
     private readonly displayBaseGeometry: RoundedBoxGeometry;
     private readonly displayStandGeometry: RoundedBoxGeometry;
     private readonly indicatorMaterial: MeshStandardMaterial;
@@ -62,7 +62,7 @@ export class FinishingView
         this.root.name = 'FinishingAndPersonalGallery';
         this.displayPosition = displayPosition.clone();
         this.iron.name = 'MiniatureCraftIron';
-        this.iron.position.set(0.20, BOARD_SURFACE_Y + 0.079, 0.20);
+        this.iron.position.set(0.20, PAPER_HEIGHT + 0.079, 0.20);
         this.iron.visible = false;
         this.root.add(this.iron);
         this.collection.name = 'FinishedPlayerArtworks';
@@ -91,7 +91,7 @@ export class FinishingView
         }));
         this.paper = new Mesh(paperGeometry, paperMaterial);
         this.paper.name = 'RemovableIroningPaper';
-        this.paper.position.y = BOARD_SURFACE_Y;
+        this.paper.position.y = PAPER_HEIGHT;
         this.paper.receiveShadow = true;
         this.paper.visible = false;
         this.root.add(this.paper);
@@ -152,11 +152,8 @@ export class FinishingView
         indicator.position.set(0.054, 0.091, -0.021);
         this.iron.add(indicator);
 
-        // Own only these upright clones; the loader keeps ownership of both source kits.
-        this.displayBeadGeometries = {
-            midi: this.ownGeometry(beadModels.fused.clone().rotateX(Math.PI / 2)),
-            mini: this.ownGeometry(beadModels.mini.fused.clone().rotateX(Math.PI / 2))
-        };
+        // Every saved artwork uses the same Mini geometry; retain only this upright clone.
+        this.displayBeadGeometry = this.ownGeometry(beadModels.fused.clone().rotateX(Math.PI / 2));
         this.displayBaseGeometry = this.ownGeometry(new RoundedBoxGeometry(0.352, 0.041, 0.13, 2, 0.013));
         this.displayStandGeometry = this.ownGeometry(new RoundedBoxGeometry(0.07, 0.15, 0.034, 2, 0.012));
     }
@@ -170,10 +167,6 @@ export class FinishingView
         }
         this.stage = model.stage;
         this.mode = model.mode;
-        const dimensions = getBeadDimensions(model.pattern);
-        const paperHeight = BOARD_SURFACE_Y + dimensions.heightMm * MILLIMETRES_TO_WORLD + PAPER_CLEARANCE;
-        this.iron.position.y += paperHeight - this.paper.position.y;
-        this.paper.position.y = paperHeight;
         this.paper.visible = model.stage === 'ironing';
         this.iron.visible = model.stage === 'ironing' && model.mode === 'beadwork';
         this.paper.material.opacity = 0.42 - Math.max(0, Math.min(1, model.ironProgress)) * 0.055;
@@ -286,15 +279,13 @@ export class FinishingView
             stand.castShadow = true;
             piece.add(stand);
 
-            const dimensions = getBeadDimensions(pattern);
-            const beads = new InstancedMesh(this.displayBeadGeometries[dimensions.format],
+            const beads = new InstancedMesh(this.displayBeadGeometry,
                 this.materials.create('#ffffff', 'bead'), beadCount);
             beads.name = 'ActualSavedHollowBeads';
             beads.userData.artworkId = artwork.artworkId;
             beads.userData.painterlyOutline = { enabled: false };
             beads.castShadow = true;
             beads.receiveShadow = true;
-            const pitch = dimensions.pitchMm * MILLIMETRES_TO_WORLD;
             let firstColumn = artwork.width;
             let lastColumn = 0;
             let lastRow = 0;
@@ -318,8 +309,8 @@ export class FinishingView
                 }
                 const column = index % artwork.width;
                 const row = Math.floor(index / artwork.width);
-                marker.position.set((column - (firstColumn + lastColumn) / 2) * pitch,
-                    0.037 + (lastRow - row) * pitch, 0.025);
+                marker.position.set((column - (firstColumn + lastColumn) / 2) * BEAD_PITCH,
+                    0.037 + (lastRow - row) * BEAD_PITCH, 0.025);
                 marker.scale.setScalar(1);
                 marker.updateMatrix();
                 beads.setMatrixAt(instance, marker.matrix);

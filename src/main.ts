@@ -75,7 +75,7 @@ configurePainterlyRenderer(renderer, window.devicePixelRatio);
 const outline = new PainterlyOutline(renderer);
 const lighting = createPainterlyLighting(new Vector3(1.27, 1.54, -0.96));
 scene.add(lighting);
-const beadModels = await loadBeadModels(`${import.meta.env.BASE_URL}models/bead-kit.glb`).catch((error: unknown) =>
+const beadModels = await loadBeadModels(`${import.meta.env.BASE_URL}models/mini-bead-kit.glb`).catch((error: unknown) =>
 {
     hud.fail('拼豆模型加载失败，请刷新重试。');
     throw error;
@@ -227,7 +227,6 @@ function refreshView(): void
     {
         boardView.sync(model);
         boardPlane.constant = -boardView.hitPlaneHeight;
-        environment.setBeadFormat(boardView.dimensions.format);
         lastBoardRevision = model.board.revision;
         lastPattern = model.pattern.patternId;
         lastStage = model.stage;

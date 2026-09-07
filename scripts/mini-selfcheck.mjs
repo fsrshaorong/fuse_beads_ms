@@ -10,7 +10,7 @@ const output = new URL('../artifacts/mini-check/', import.meta.url);
 const project = fileURLToPath(new URL('../', import.meta.url));
 const report = { passed: false, timestamp: new Date().toISOString(), errors: [], assets: {} };
 await mkdir(output, { recursive: true });
-for (const name of ['bead-kit.glb', 'mini-bead-kit.glb'])
+for (const name of ['mini-bead-kit.glb'])
 {
     const bytes = await readFile(new URL(`../public/models/${name}`, import.meta.url));
     report.assets[name] = { bytes: bytes.length, sha256: createHash('sha256').update(bytes).digest('hex') };
@@ -67,9 +67,9 @@ try
         await writeFile(new URL(`${name}.png`, output), Buffer.from(data.split(',')[1], 'base64'));
     }
     const columns = [
-        ['midi-raw', '01 / MIDI · 未熨烫', '29 × 29 图案 · 320 颗', '外径 4.77 mm · 高 5.07 mm · 钉距 5 mm'],
-        ['mini-raw', '02 / MINI · 未熨烫', '50 × 50 图案 · 1,159 颗', '外径 2.61 mm · 高 2.8 mm · 钉距 2.7 mm'],
-        ['mini-fused', '03 / MINI · 已熨烫', '同一张图案 · 1,159 颗', '高 2 mm · 细小上孔 · 关闭逐豆描边']
+        ['legacy-29-raw', '01 / 旧图 · MINI 未熨烫', '29 × 29 图案 · 320 颗', '外径 2.61 mm · 高 2.8 mm · 钉距 2.7 mm'],
+        ['mini-50-raw', '02 / 新图 · MINI 未熨烫', '50 × 50 图案 · 1,159 颗', '外径 2.61 mm · 高 2.8 mm · 钉距 2.7 mm'],
+        ['mini-50-fused', '03 / 新图 · MINI 已熨烫', '同一张新图 · 1,159 颗', '高 2 mm · 细小上孔 · 关闭逐豆描边']
     ];
     const html = `<!doctype html><html><head><meta charset="utf-8"><style>
         *{box-sizing:border-box}body{margin:0;background:#f9f1e8;color:#59424f;font-family:"Microsoft YaHei",sans-serif;padding:38px 40px 28px}
@@ -79,9 +79,9 @@ try
         h2{font-size:16px;margin:0 0 9px}p{font-size:14px;margin:0;color:#876c68}img{width:100%;display:block}
         footer{padding:0 22px 22px;font-size:12px;color:#8f7671}.note{margin:22px 0 0;font-size:12px;line-height:1.8;color:#8e7772}
         </style></head><body><div class="eyebrow">豆间 / 实体尺度对照</div><h1>同一块 145 mm 板，同一台相机</h1>
-        <div class="intro">真实 GLB · 相同光照与静态手绘材质 · 无数字覆盖 · 相机、画幅和物理比例保持一致</div>
+        <div class="intro">全部采用同一套 Mini GLB、52 × 52 钉阵、光照与静态手绘材质 · 无数字覆盖 · 相机、画幅和物理比例保持一致</div>
         <div class="grid">${columns.map(([name, title, subtitle, dimensions]) => `<article><header><h2>${title}</h2><p>${subtitle}</p></header><img src="${result.images[name]}" alt="${title}"><footer>${dimensions}</footer></article>`).join('')}</div>
-        <div class="note">Mini 同时增加了格数、图案细节与独立色号；左、中两列不是仅改变模型的控制实验。中、右两列保持图案、豆色、相机与光照完全一致。<br>孔径、钉距及熨烫形态为明确记录的建模估值；此图验证真实组件装配，不代表完整主页面交互或其他 GPU 的性能。</div></body></html>`;
+        <div class="note">旧图格位和豆色数据保留原值；所有图案使用相同大小的豆，新图以更多格位增加细节和实体面积。中、右两列保持图案、豆色、相机与光照完全一致。<br>孔径、钉距及熨烫形态为明确记录的建模估值；此图验证真实组件装配，不代表完整主页面交互或其他 GPU 的性能。</div></body></html>`;
     await writeFile(new URL('comparison.html', output), html);
     await page.setViewportSize({ width: 1860, height: 915 });
     await page.setContent(html);
@@ -94,7 +94,7 @@ try
         externalRequests: requests.filter((url) => !url.startsWith(`${origin}/`) && !url.startsWith('data:')) };
     assert.equal(report.isolation.importedMainOrHud, false);
     assert.deepEqual(report.isolation.externalRequests, []);
-    assert.deepEqual(report.checks.filter((check) => !check.passed), [], 'Mini/Midi component checks');
+    assert.deepEqual(report.checks.filter((check) => !check.passed), [], 'uniform Mini component checks');
     assert.deepEqual(report.errors, [], 'browser and WebGL console');
     report.passed = true;
     await context.close();
@@ -124,7 +124,7 @@ async function runChecks(threeUrl)
     const { PainterlyOutline } = await import('/src/Rendering/PainterlyOutline.ts');
     const { configurePainterlyRenderer, createPainterlyLighting } = await import('/src/Rendering/PainterlyLighting.ts');
     const owner = new PainterlyMaterials();
-    const [models] = await Promise.all([loadBeadModels('/models/bead-kit.glb'), owner.ready]);
+    const [models] = await Promise.all([loadBeadModels('/models/mini-bead-kit.glb'), owner.ready]);
     const renderer = new T.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
     configurePainterlyRenderer(renderer, 1);
     renderer.setSize(1000, 1000);
@@ -151,7 +151,7 @@ async function runChecks(threeUrl)
     let retiredGeometries = 0;
     let watchedGeometries = 0;
     const watched = new Set();
-    const sources = [models.raw, models.fused, models.mini.raw, models.mini.fused];
+    const sources = [models.raw, models.fused];
     for (const geometry of sources)
     {
         geometry.addEventListener('dispose', () => sourceDisposals += 1);
@@ -188,14 +188,17 @@ async function runChecks(threeUrl)
             command(app, { type: 'endStroke' });
         }
         const raw = app.getReadModel();
+        const rawSave = app.exportSave();
         command(app, { type: 'startIroning' });
         command(app, { type: 'ironCell', ...occupied[0] });
         const single = app.getReadModel();
+        const singleSave = app.exportSave();
         for (const cell of occupied.slice(1))
         {
             command(app, { type: 'ironCell', ...cell });
         }
-        return { raw, single, fused: app.getReadModel(), serialized: app.exportSave(), occupied };
+        return { raw, single, fused: app.getReadModel(), occupied,
+            saves: { raw: rawSave, single: singleSave, fused: app.exportSave() } };
     }
     function sync(model)
     {
@@ -363,8 +366,11 @@ async function runChecks(threeUrl)
         material.dispose();
     }
     const scenarios = [
-        { key: 'midi', id: 'atelier-strawberry-charm-29-v1', width: 29, count: 320, diameter: 4.77, height: 5.07, pitch: 5, pins: 841 },
-        { key: 'mini', id: 'atelier-strawberry-mini-50-v1', width: 50, count: 1159, diameter: 2.61, height: 2.8, pitch: 2.7, pins: 2704 }
+        { key: 'legacy-16', id: 'pixel-heart', width: 16, count: 84,
+            originalSignature: '0b8d60982007f653fca6fee2ee3b6f8745a29a7ef9a6bee57e1a808bbe25a565' },
+        { key: 'legacy-29', id: 'atelier-strawberry-charm-29-v1', width: 29, count: 320,
+            originalSignature: 'ec04b3c21e284e5d1ede9db25d8b42a50ae740e248bb618258c25405814bf76d' },
+        { key: 'mini-50', id: 'atelier-strawberry-mini-50-v1', width: 50, count: 1159 }
     ];
     const snapshots = {};
     const frames = {};
@@ -373,6 +379,14 @@ async function runChecks(threeUrl)
         const { key } = scenario;
         const stages = createStages(scenario.id);
         snapshots[key] = stages;
+        if (scenario.originalSignature)
+        {
+            // Frozen before the uniform-Mini change: old cell/color identities must remain compatible.
+            const pattern = stages.raw.pattern;
+            const bytes = new TextEncoder().encode(JSON.stringify([pattern.width, pattern.height, pattern.palette, pattern.targetNumbers]));
+            const hash = Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', bytes)), (byte) => byte.toString(16).padStart(2, '0')).join('');
+            check(`${key}: original layout and palette signature remains unchanged`, hash === scenario.originalSignature, { sha256: hash });
+        }
         check(`${key}: real command workflow fills the expected pattern`, stages.raw.stage === 'ready'
             && stages.raw.pattern.width === scenario.width && stages.occupied.length === scenario.count
             && stages.single.stage === 'ironing' && stages.single.ironCoverage.filter(Boolean).length === 1
@@ -380,15 +394,14 @@ async function runChecks(threeUrl)
         sync(stages.raw);
         const metrics = board.metrics();
         measurements[key] = metrics;
-        const boardGeometry = board.root.getObjectByName(`${key}Pegboard145mm`).geometry;
+        const boardGeometry = board.root.children.find((object) => /Pegboard145mm$/.test(object.name)).geometry;
         boardGeometry.computeBoundingBox();
-        check(`${key}: 145 mm board keeps actual diameter and peg pitch`, near(metrics.diameterMm, scenario.diameter)
-            && near(metrics.heightMm, scenario.height) && near(metrics.pitchMm, scenario.pitch) && metrics.pegCount === scenario.pins
+        check(`${key}: 145 mm board uses the same 2.61 mm Mini bead and 52 × 52 pegs`, near(metrics.diameterMm, 2.61)
+            && near(metrics.heightMm, 2.8) && near(metrics.pitchMm, 2.7) && metrics.pegCount === 2704
             && near(boardGeometry.boundingBox.max.x * 2 / 0.006, 145), metrics);
         verifyPicking(stages.raw, key);
-        const pair = key === 'mini' ? models.mini : models;
-        verifyGeometry(pair.raw, `${key} raw`, board.dimensions, false);
-        verifyGeometry(pair.fused, `${key} fused`, board.dimensions, true);
+        verifyGeometry(models.raw, `${key} raw`, board.dimensions, false);
+        verifyGeometry(models.fused, `${key} fused`, board.dimensions, true);
         for (const stage of ['raw', 'single', 'fused'])
         {
             sync(stages[stage]);
@@ -403,23 +416,30 @@ async function runChecks(threeUrl)
             const fused = board.root.getObjectByName('LocallyFusedBeadInstances');
             check(`${key} ${stage}: fused instances suppress per-bead outline`, fused.userData.painterlyOutline?.enabled === false);
         }
-        const restored = new WorkshopApplication();
-        command(restored, { type: 'restore', serialized: stages.serialized });
-        sync(restored.getReadModel());
-        verifyInstances(restored.getReadModel(), `${key} restored finished save`);
-        check(`${key}: restoring completed data reproduces its rendered frame`, pixelDifference(frames[`${key}-fused`], read()) === 0);
+        for (const stage of ['raw', 'single', 'fused'])
+        {
+            const restored = new WorkshopApplication();
+            command(restored, { type: 'restore', serialized: stages.saves[stage] });
+            const model = restored.getReadModel();
+            sync(model);
+            verifyInstances(model, `${key} restored ${stage} save`);
+            check(`${key}: ${stage} save preserves every cell, coverage flag and rendered pixel`,
+                JSON.stringify(model.board.cells) === JSON.stringify(stages[stage].board.cells)
+                && JSON.stringify(model.ironCoverage) === JSON.stringify(stages[stage].ironCoverage)
+                && pixelDifference(frames[`${key}-${stage}`], read()) === 0);
+        }
         check(`${key}: local and complete ironing visibly change geometry`, pixelDifference(frames[`${key}-raw`], frames[`${key}-single`]) > 0
             && pixelDifference(frames[`${key}-raw`], frames[`${key}-fused`]) > 1000);
     }
     for (let cycle = 0; cycle < 3; cycle += 1)
     {
-        for (const key of ['midi', 'mini'])
+        for (const key of ['legacy-16', 'legacy-29', 'mini-50'])
         {
             sync(snapshots[key].raw);
             check(`switch ${cycle + 1} → ${key}: complete original frame returns`, pixelDifference(frames[`${key}-raw`], read()) === 0);
         }
     }
-    check('format switching leaves shared model assets alive', sourceDisposals === 0, { sourceDisposals });
+    check('pattern switching leaves the one shared Mini model pair alive', sourceDisposals === 0, { sourceDisposals });
     check('renderer reports no WebGL error', gl.getError() === gl.NO_ERROR);
     measurements.camera = { type: 'PerspectiveCamera', fov: camera.fov, position: camera.position.toArray(),
         target: [0, 1.155, 0], resolution: [1000, 1000], boardMm: 145 };
@@ -430,7 +450,7 @@ async function runChecks(threeUrl)
     check('all retired per-board geometries are disposed without releasing shared GLBs', retiredGeometries === watchedGeometries
         && sourceDisposals === 0, { retiredGeometries, watchedGeometries, sourceDisposals });
     models.dispose();
-    check('model owner releases exactly four shared geometries', sourceDisposals === 4, { sourceDisposals });
+    check('model owner releases exactly two shared Mini geometries', sourceDisposals === 2, { sourceDisposals });
     owner.dispose();
     lighting.traverse((object) => object.shadow?.dispose());
     renderer.dispose();

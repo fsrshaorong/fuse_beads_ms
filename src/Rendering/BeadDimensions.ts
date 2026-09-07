@@ -1,8 +1,6 @@
-export type BeadFormat = 'midi' | 'mini';
-
 export interface BeadDimensions
 {
-    readonly format: BeadFormat;
+    readonly format: 'mini';
     readonly diameterMm: number;
     readonly heightMm: number;
     readonly holeDiameterMm: number;
@@ -15,23 +13,8 @@ export interface BeadDimensions
     readonly gridSize: number;
 }
 
-/** Physical craft dimensions. See docs/BEAD_MODELS.md for sources and estimates. */
+/** One Mini kit for every pattern. Published outside dimensions; bore and pitch are estimates. */
 export const BEAD_DIMENSIONS: Readonly<BeadDimensions> = Object.freeze({
-    format: 'midi',
-    diameterMm: 4.77,
-    heightMm: 5.07,
-    holeDiameterMm: 2.5,
-    pitchMm: 5,
-    fusedHeightMm: 3.7,
-    boardSizeMm: 145,
-    boardThicknessMm: 2.5,
-    pegHeightMm: 3.1,
-    pegDiameterMm: 1.6,
-    gridSize: 29
-});
-
-/** Mini outside dimensions are Perler's published values; bore and pitch are estimates. */
-export const MINI_BEAD_DIMENSIONS: Readonly<BeadDimensions> = Object.freeze({
     format: 'mini',
     diameterMm: 2.61,
     heightMm: 2.8,
@@ -45,13 +28,6 @@ export const MINI_BEAD_DIMENSIONS: Readonly<BeadDimensions> = Object.freeze({
     gridSize: 52
 });
 
-/** Catalog layouts above 29 cells use the independent Mini kit, never resized Midi beads. */
-export function getBeadDimensions(pattern: { readonly width: number; readonly height: number }): Readonly<BeadDimensions>
-{
-    return Math.max(pattern.width, pattern.height) > BEAD_DIMENSIONS.gridSize
-        ? MINI_BEAD_DIMENSIONS : BEAD_DIMENSIONS;
-}
-
 // Art direction scale: a 145 mm board spans 23% of the 3.8-unit workbench.
 // This changes the craft's world size, never the size of an individual bead per pattern.
 export const MILLIMETRES_TO_WORLD = 0.006;
@@ -64,7 +40,7 @@ export const BOARD_SURFACE_Y = 1.14 + BOARD_THICKNESS;
 export const BEAD_TOP_Y = BOARD_SURFACE_Y + BEAD_HEIGHT;
 export const PEG_HEIGHT = BEAD_DIMENSIONS.pegHeightMm * MILLIMETRES_TO_WORLD;
 
-/** Center smaller patterns on actual pegs, including even patterns on the odd grid. */
+/** Center every pattern on actual pegs of the common 52-column board. */
 export function patternGridOffset(size: number, gridSize = BEAD_DIMENSIONS.gridSize): number
 {
     return Math.floor((gridSize - size) / 2) - (gridSize - 1) / 2;

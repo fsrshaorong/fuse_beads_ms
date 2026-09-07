@@ -15,5 +15,4 @@ for (const name of textures)
     await access(new URL(name, targetRoot));
 }
 
-await access(new URL('../public/models/bead-kit.glb', import.meta.url));
 await access(new URL('../public/models/mini-bead-kit.glb', import.meta.url));

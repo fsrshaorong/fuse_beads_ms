@@ -12,40 +12,12 @@ export interface BeadModelPair
 
 export interface BeadModels extends BeadModelPair
 {
-    readonly mini: BeadModelPair;
     dispose(): void;
 }
 
 export async function loadBeadModels(url: string): Promise<BeadModels>
 {
-    const miniUrl = url.replace(/bead-kit\.glb$/, 'mini-bead-kit.glb');
-    const results = await Promise.allSettled([
-        loadKit(url, 'MidiBead', 'FusedMidiBead'),
-        loadKit(miniUrl, 'MiniBead', 'FusedMiniBead')
-    ]);
-    if (results[0].status === 'rejected' || results[1].status === 'rejected')
-    {
-        for (const result of results)
-        {
-            if (result.status === 'fulfilled')
-            {
-                result.value.dispose();
-            }
-        }
-        throw new Error('A local Blender bead kit failed to load.');
-    }
-    const midi = results[0].value;
-    const mini = results[1].value;
-    return {
-        raw: midi.raw,
-        fused: midi.fused,
-        mini,
-        dispose(): void
-        {
-            midi.dispose();
-            mini.dispose();
-        }
-    };
+    return loadKit(url, 'MiniBead', 'FusedMiniBead');
 }
 
 async function loadKit(url: string, rawName: string, fusedName: string): Promise<BeadModelPair & { dispose(): void }>

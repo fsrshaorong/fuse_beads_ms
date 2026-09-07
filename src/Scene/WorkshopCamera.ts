@@ -11,7 +11,7 @@ import type {
 } from '../Core/Gameplay/Workshop/WorkshopInteractionFlow';
 import type { WorkshopReadModel } from '../App/WorkshopApplication';
 import {
-    BEAD_PITCH, BEAD_TOP_Y, BOARD_SIZE, BOARD_SURFACE_Y, BOARD_THICKNESS
+    BEAD_TOP_Y, BOARD_SIZE, BOARD_SURFACE_Y, BOARD_THICKNESS
 } from '../Rendering/BeadDimensions';
 
 interface CameraPose
@@ -28,8 +28,8 @@ const BOARD_HALF_EXTENT = BOARD_SIZE * 0.5;
 const BOARD_CENTER = new Vector3(0, BOARD_SURFACE_Y, 0);
 const UP = new Vector3(0, 1, 0);
 const FULL_DIRECTION = new Vector3(0, 1, 0.2).normalize();
-// About thirteen peg intervals above the board keeps individual tube walls legible.
-const CLOSE_OFFSET = new Vector3(0, BEAD_PITCH * 13.5, BEAD_PITCH * 6);
+// Keep the established framing independent of bead diameter or pattern resolution.
+const CLOSE_OFFSET = new Vector3(0, 0.405, 0.18);
 const FULL_BOARD_FIELD_OF_VIEW = 42;
 const WORLD_DISTANCE = Math.sqrt(7 * 7 + 5.8 * 5.8 + 9 * 9);
 

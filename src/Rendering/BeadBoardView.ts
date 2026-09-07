@@ -11,7 +11,7 @@ import type { PainterlyMaterials } from './PainterlyMaterials';
 import type { BeadModels } from './BeadModels';
 import {
     BEAD_DIMENSIONS, BEAD_PITCH, BOARD_SIZE, BOARD_SURFACE_Y,
-    BOARD_THICKNESS, MILLIMETRES_TO_WORLD, getBeadDimensions, patternGridOffset
+    BOARD_THICKNESS, MILLIMETRES_TO_WORLD, patternGridOffset
 } from './BeadDimensions';
 import type { BeadDimensions } from './BeadDimensions';
 
@@ -38,8 +38,8 @@ export class BeadBoardView
     private width = 16;
     private height = 16;
     private stage = '';
-    private pitch = BEAD_PITCH;
-    private spec: Readonly<BeadDimensions> = BEAD_DIMENSIONS;
+    private readonly pitch = BEAD_PITCH;
+    private readonly spec: Readonly<BeadDimensions> = BEAD_DIMENSIONS;
     private time = 0;
     private ironCoverage: readonly boolean[] = [];
 
@@ -249,8 +249,6 @@ export class BeadBoardView
         this.patternId = model.pattern.patternId;
         this.width = model.pattern.width;
         this.height = model.pattern.height;
-        this.spec = getBeadDimensions(model.pattern);
-        this.pitch = this.spec.pitchMm * MILLIMETRES_TO_WORLD;
         const count = this.width * this.height;
         this.cells = new Array<number>(count).fill(0);
         this.cellColors = Array.from({ length: count }, () => new Color('#ffffff'));
@@ -290,15 +288,14 @@ export class BeadBoardView
             }
         }
 
-        const kit = this.spec.format === 'mini' ? this.models.mini : this.models;
-        const beadGeometry = kit.raw.clone();
+        const beadGeometry = this.models.raw.clone();
         this.ownedGeometries.push(beadGeometry);
         this.beads = new InstancedMesh(beadGeometry, this.materials.create('#ffffff', 'bead'), count);
         this.beads.name = 'HollowBeadInstances';
         this.beads.castShadow = true;
         this.beads.receiveShadow = true;
         this.beads.frustumCulled = false;
-        const fusedGeometry = kit.fused.clone();
+        const fusedGeometry = this.models.fused.clone();
         this.ownedGeometries.push(fusedGeometry);
         this.fusedBeads = new InstancedMesh(fusedGeometry, this.materials.create('#ffffff', 'bead'), count);
         this.fusedBeads.name = 'LocallyFusedBeadInstances';

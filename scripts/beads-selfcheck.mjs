@@ -32,11 +32,11 @@ function assertModelDimensions(model)
 {
     assert.equal(model.source, 'Blender GLB', 'rendered geometry comes from the Blender asset');
     // GLB positions use float32; 0.001 mm is substantially below a manufacturing tolerance.
-    assert.ok(Math.abs(model.diameterMm - 4.77) < 0.001, `actual diameter: ${model.diameterMm} mm`);
-    assert.ok(Math.abs(model.heightMm - 5.07) < 0.001, `actual height: ${model.heightMm} mm`);
+    assert.ok(Math.abs(model.diameterMm - 2.61) < 0.001, `actual diameter: ${model.diameterMm} mm`);
+    assert.ok(Math.abs(model.heightMm - 2.8) < 0.001, `actual height: ${model.heightMm} mm`);
     assert.ok(Math.abs(model.bottomMm) < 0.001, `actual bottom: ${model.bottomMm} mm`);
-    assert.equal(model.pegCount, 841, 'the selected Midi board has 29 × 29 pegs');
-    assert.ok(Math.abs(model.pitchMm - 5) < 0.001, `actual peg pitch: ${model.pitchMm} mm`);
+    assert.equal(model.pegCount, 2704, 'every pattern uses the same Mini board with 52 × 52 pegs');
+    assert.ok(Math.abs(model.pitchMm - 2.7) < 0.001, `actual peg pitch: ${model.pitchMm} mm`);
 }
 
 async function assertModels(rawCount, fusedCount, label)
@@ -100,7 +100,7 @@ try
     });
     await page.goto(url);
     await page.waitForFunction(() => window.beadsAtelier?.metrics().ready === true);
-    // Keep the established Midi regression fixture after Mini becomes the default.
+    // Preserve the old 29-grid artwork while every catalog entry uses the same Mini kit.
     await dispatch({ type: 'selectPattern', patternId: strawberryId });
     const initial = await read();
     assert.equal(initial.mode, 'workshop');
@@ -111,8 +111,8 @@ try
     assert.equal(initial.pattern.targetNumbers.filter((value) => value === 0).length, 521);
     assert.equal(initial.board.cells.filter(Boolean).length, 0);
     assert.equal(initial.finishedArtworks.length, 0);
-    await assertModels(0, 0, 'midi-draft');
-    passed('selecting the Midi strawberry uses an empty 29 × 29 draft and real-size Blender bead kit');
+    await assertModels(0, 0, 'legacy-29-mini-draft');
+    passed('the legacy 29 × 29 strawberry keeps its draft and uses the shared 2.61 mm Mini kit');
 
     await focusBoard();
     assert.equal((await read()).board.cells.filter(Boolean).length, 0, 'entering the board places no bead');
@@ -175,7 +175,7 @@ try
     await dispatch({ type: 'selectPattern', patternId: strawberryId });
     assert.deepEqual((await read()).board.cells, expectedRow, 'the strawberry draft survives the pattern round trip');
     await assertModels(15, 0, 'restored-strawberry-draft');
-    passed('16-grid and 29-grid use identical physical beads and preserve independent drafts');
+    passed('16-grid and 29-grid both use the same 2.61 mm Mini beads and 52 × 52 pins, preserving independent drafts');
 
     await page.evaluate(() =>
     {

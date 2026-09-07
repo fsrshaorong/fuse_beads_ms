@@ -1,6 +1,6 @@
 import type { WorkshopCommand, WorkshopReadModel } from '../App/WorkshopApplication';
 import { getBeadColor, getBeadColorName } from '../Rendering/BeadPalette';
-import { getBeadDimensions } from '../Rendering/BeadDimensions';
+import { BEAD_DIMENSIONS } from '../Rendering/BeadDimensions';
 import { DEFAULT_PAINTERLY_PROFILE } from '../Rendering/PainterlyMaterials';
 import type { PainterlyProfile } from '../Rendering/PainterlyMaterials';
 import { DEFAULT_PAINTERLY_OUTLINE_PROFILE } from '../Rendering/PainterlyOutline';
@@ -115,7 +115,7 @@ export class WorkshopHud
             this.lastPattern = model.pattern.patternId;
             this.text('#pattern-title', model.pattern.name);
             this.text('#pattern-meta', `${model.pattern.width} × ${model.pattern.height} · ${model.pattern.palette.length} 种颜色`);
-            this.text('#bead-specification', beadSpecification(model.pattern));
+            this.text('#bead-specification', beadSpecification());
             this.drawPattern(this.require<HTMLCanvasElement>('#pattern-preview'), model.pattern, model.pattern.targetNumbers);
             this.palette.replaceChildren();
 
@@ -336,7 +336,7 @@ export class WorkshopHud
             const count = document.createElement('small');
             count.textContent = `${pattern.width} × ${pattern.height} · ${pattern.palette.length} 色`;
             const specification = document.createElement('small');
-            specification.textContent = beadSpecification(pattern);
+            specification.textContent = beadSpecification();
             button.append(canvas, name, count, specification);
             button.addEventListener('click', () =>
             {
@@ -375,7 +375,7 @@ export class WorkshopHud
                 const title = document.createElement('strong');
                 title.textContent = artwork.name;
                 const specification = document.createElement('small');
-                specification.textContent = beadSpecification(pattern);
+                specification.textContent = beadSpecification();
                 item.append(canvas, title, specification);
                 grid.append(item);
             }
@@ -448,12 +448,9 @@ export class WorkshopHud
     }
 }
 
-function beadSpecification(pattern: WorkshopReadModel['pattern']): string
+function beadSpecification(): string
 {
-    const dimensions = getBeadDimensions(pattern);
-    const nominalDiameter = dimensions.format === 'mini'
-        ? dimensions.diameterMm.toFixed(1) : String(Math.round(dimensions.diameterMm));
-    return `${nominalDiameter} mm 拼豆 · ${dimensions.gridSize} × ${dimensions.gridSize} 钉板`;
+    return `${BEAD_DIMENSIONS.diameterMm.toFixed(1)} mm 拼豆 · ${BEAD_DIMENSIONS.gridSize} × ${BEAD_DIMENSIONS.gridSize} 钉板`;
 }
 
 function craftNote(model: WorkshopReadModel): string
