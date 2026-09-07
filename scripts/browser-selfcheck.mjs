@@ -71,6 +71,25 @@ try
     const moved = (await read()).avatar;
     assert.ok(moved.x > start.avatar.x && moved.z < start.avatar.z,
         'D follows the default angled camera right direction across both ground axes');
+    await page.waitForTimeout(800);
+    const orbitWalls = await page.evaluate(() => window.beadsAtelier.metrics().visibleWalls);
+    for (const button of ['left', 'middle'])
+    {
+        await page.mouse.move(500, 450);
+        await page.mouse.down({ button });
+        await page.mouse.move(950, 450, { steps: 12 });
+        await page.mouse.up({ button });
+        await page.waitForTimeout(800);
+        const orbitedWalls = await page.evaluate(() => window.beadsAtelier.metrics().visibleWalls);
+        assert.notDeepEqual(orbitedWalls, orbitWalls,
+            `${button} drag rotates the world camera without right-button gestures`);
+        assert.deepEqual((await read()).avatar, moved, 'orbit does not move the player');
+        assert.equal((await read()).board.correctCellCount, 0, 'world dragging never places beads');
+        await page.mouse.down({ button });
+        await page.mouse.move(500, 450, { steps: 12 });
+        await page.mouse.up({ button });
+        await page.waitForTimeout(800);
+    }
     await page.keyboard.press('KeyE');
     await waitMode('tabletop');
     await page.waitForTimeout(150);
@@ -195,7 +214,7 @@ try
     assert.deepEqual(errors, [], 'browser and shader console stays clean');
     const report = { passed: true, viewport: '1280x720', metrics, errors, checks: [
         'static idle scene', 'reference style controls and reset', 'visible outline toggle and reset',
-        'camera-relative movement', 'sit/focus/return', 'entry-click gate', 'drag interpolation',
+        'camera-relative movement', 'left/middle world orbit', 'sit/focus/return', 'entry-click gate', 'drag interpolation',
         'stroke undo/redo', 'continuous zoom', 'save/reload', 'ironing pointer',
         'HUD captured-pointer isolation', 'restored ironing visibility',
         'finished collection', 'four aspect ratios', 'zero WebGL errors'

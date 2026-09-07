@@ -200,7 +200,7 @@ export class WorkshopHud
             this.primary.innerHTML = `坐到工作台 <kbd>E</kbd> ${ARROW}`;
             this.primary.disabled ||= !canSit;
             this.text('#context-title', canSit ? '窗边的工作台空着呢' : '走近窗边的工作台');
-            this.text('#context-instructions', 'WASD 随镜头移动 · 右键拖动观察 · 滚轮调整远近');
+            this.text('#context-instructions', 'WASD 随镜头移动 · 左键拖动观察 · 滚轮调整远近');
         }
         else if (mode === 'tabletop')
         {

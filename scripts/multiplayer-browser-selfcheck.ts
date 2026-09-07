@@ -167,9 +167,9 @@ try
     await a.locator('.world-canvas').focus();
     const wallsBefore = await a.evaluate(() => window.beadsAtelier.metrics().visibleWalls.join(','));
     await a.mouse.move(500, 470);
-    await a.mouse.down({ button: 'right' });
+    await a.mouse.down({ button: 'left' });
     await a.mouse.move(1120, 470, { steps: 12 });
-    await a.mouse.up({ button: 'right' });
+    await a.mouse.up({ button: 'left' });
     await a.waitForFunction((before) => window.beadsAtelier.metrics().visibleWalls.join(',') !== before, wallsBefore);
     await a.waitForTimeout(800);
     await a.screenshot({ path: join(output, '05-room-cutaway.png') });

@@ -478,7 +478,8 @@ function bindInput(): void
         lastPointerY = event.clientY;
         const model = application.getReadModel();
 
-        if (event.button === 2 && model.mode === 'workshop')
+        // Primary/middle drag avoids browser or extension right-button gesture interception.
+        if ((event.button === 0 || event.button === 1) && model.mode === 'workshop')
         {
             pointerMode = 'orbit';
         }

@@ -41,6 +41,8 @@ button[hidden], [hidden] { display: none !important; }
 .atelier { width: 100vw; height: 100dvh; min-height: 420px; position: relative; isolation: isolate; background: #fff7e761; }
 .atelier { backdrop-filter: blur(10px); }
 .world-canvas { width: 100%; height: 100%; display: block; touch-action: none; outline: none; }
+.atelier[data-mode="workshop"] .world-canvas { cursor: grab; }
+.atelier[data-mode="workshop"] .world-canvas:active { cursor: grabbing; }
 .scene-vignette { position: absolute; inset: 0; pointer-events: none; box-shadow: inset 0 0 80px #fff7e13d; }
 .masthead { position: absolute; top: 35px; left: 42px; right: 40px; display: flex; align-items: center; justify-content: space-between; pointer-events: none; z-index: 3; }
 .masthead > * { pointer-events: auto; }
