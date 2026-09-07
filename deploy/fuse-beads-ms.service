@@ -1,0 +1,25 @@
+[Unit]
+Description=Fuse Beads MS multiplayer backend
+After=network.target
+
+[Service]
+Type=simple
+User=fusebeadsms
+Group=fusebeadsms
+WorkingDirectory=/opt/fuse-beads-ms/current
+EnvironmentFile=/etc/fuse-beads-ms/server.env
+ExecStart=/opt/fuse-beads-ms/runtime/node-v24.13.0-linux-x64/bin/node --max-old-space-size=384 /opt/fuse-beads-ms/current/main.mjs
+Restart=on-failure
+RestartSec=3
+TimeoutStopSec=30
+MemoryMax=512M
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/fuse-beads-ms
+LimitNOFILE=8192
+
+[Install]
+WantedBy=multi-user.target

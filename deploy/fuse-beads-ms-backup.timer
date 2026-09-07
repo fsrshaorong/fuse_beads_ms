@@ -1,0 +1,10 @@
+[Unit]
+Description=Back up Fuse Beads MS every six hours
+
+[Timer]
+OnCalendar=*-*-* 00,06,12,18:15:00
+RandomizedDelaySec=300
+Persistent=true
+
+[Install]
+WantedBy=timers.target

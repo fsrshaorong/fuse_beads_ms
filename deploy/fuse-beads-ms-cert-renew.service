@@ -1,0 +1,8 @@
+[Unit]
+Description=Renew Fuse Beads MS public IP TLS certificate
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/opt/fuse-beads-ms/certbot/bin/certbot renew --cert-name fuse-beads-ms-ip --quiet --deploy-hook "/usr/sbin/nginx -t && /usr/bin/systemctl reload nginx"

@@ -22,6 +22,8 @@
         "test": "tsx --test Tests/*.test.ts",
         "dev:server": "tsx watch server/main.ts",
         "start:server": "tsx server/main.ts",
+        "build:server": "npm run typecheck && tsx scripts/build-server.ts",
+        "selfcheck:deployed": "tsx scripts/deployed-selfcheck.ts",
         "test:multiplayer": "tsx --test Tests/Multiplayer*.test.ts",
         "selfcheck:multiplayer": "tsx scripts/multiplayer-selfcheck.ts",
         "selfcheck:multiplayer-browser": "tsx scripts/multiplayer-browser-selfcheck.ts",

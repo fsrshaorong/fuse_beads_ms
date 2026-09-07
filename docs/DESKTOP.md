@@ -73,7 +73,7 @@ npm run desktop:start
 
 `desktop:package` 使用 Electron Packager 输出 Windows x64，原生 Steam 模块从 ASAR 中解包，Steam DLL 也复制到可执行文件旁。暂存目录仅放运行所需资源，不复制后端数据库、开发依赖和个人配置。`.desktop/`、`release/` 和测试报告不提交 Git。
 
-后端地址可在启动客户端前设置环境变量 `ATELIER_MULTIPLAYER_URL`，只接受 HTTP/HTTPS 地址。后端默认允许客户端来源 `atelier://game`。部署、证书和公网入口不在本次范围。
+后端地址可在启动客户端前设置环境变量 `ATELIER_MULTIPLAYER_URL`，只接受 HTTP/HTTPS 地址。后端默认允许客户端来源 `atelier://game`。公网后端现已部署，使用 `scripts/start-desktop-online.ps1` 可启动独立公网 profile；详见 [部署说明](DEPLOYMENT.md)。已有客户端包的邀请链接仍指向本机，公网伙伴可直接输入同一房间号。
 
 ## 存档与平台边界
 

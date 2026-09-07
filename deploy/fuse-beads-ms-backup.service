@@ -1,0 +1,13 @@
+[Unit]
+Description=Back up Fuse Beads MS SQLite with the online backup API
+
+[Service]
+Type=oneshot
+User=fusebeadsms
+Group=fusebeadsms
+ExecStart=/usr/bin/python3 /opt/fuse-beads-ms/backup-server.py
+UMask=0077
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/fuse-beads-ms

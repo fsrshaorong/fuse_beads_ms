@@ -1,6 +1,7 @@
 node_modules/
 dist/
 .desktop/
+.server/
 release/
 artifacts/
 *.log

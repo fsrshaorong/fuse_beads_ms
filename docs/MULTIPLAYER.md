@@ -1,6 +1,6 @@
 # 四人合作拼豆
 
-`5173` Three.js 工作室已接入常驻 Node.js 后端和真实 WebSocket 联机。单机仍经 `WorkshopApplication`；合作模式经 `OnlineWorkshopApplication` 把权威房间状态接入同一套棋盘、镜头、工具与收藏界面。服务端部署、域名与云服务暂不处理。
+`5173` Three.js 工作室已接入常驻 Node.js 后端和真实 WebSocket 联机。单机仍经 `WorkshopApplication`；合作模式经 `OnlineWorkshopApplication` 把权威房间状态接入同一套棋盘、镜头、工具与收藏界面。公网版本已部署到 https://101.132.62.222/ ，运行与更新见 [部署说明](DEPLOYMENT.md)。
 
 场景采用四人手作店：地面面积扩大至约 1.7 倍，完整室内建筑按各自镜头动态隐藏遮挡墙顶；四人共拼一块图案，默认 50×50 草莓，保留统一 2.6 mm Mini、52×52 钉板、美术管线与无抖动效果。
 
@@ -23,7 +23,7 @@ npm run start:server
 4. 拼满正确图案后领取熨斗，按住拖动。当前持有人可放下，其他人接手，完成作品出现在参与者收藏中。
 5. 房主选择新图或历史草稿，在线成员一致同意后切换。离开小店会回到原来的单机草稿。
 
-当前邀请链接的 `127.0.0.1` 仅能用于同一台电脑，外部朋友还不能直接访问。页面生产预览或以后采用独立后端时，构建前可设 `VITE_MULTIPLAYER_URL`，或由同源 Web 服务代理 `/socket.io`；默认 Vite 代理只用于开发服务器。
+本机页面邀请链接的 `127.0.0.1` 仅能用于同一台电脑；公网网页生成的 HTTPS 邀请链接可供朋友访问。采用独立后端时，构建前可设 `VITE_MULTIPLAYER_URL`，或由同源 Web 服务代理 `/socket.io`；默认 Vite 代理只用于开发服务器。
 
 ![隔离双浏览器联调中的共同成品，使用真实主页面](images/multiplayer-finished.png)
 
