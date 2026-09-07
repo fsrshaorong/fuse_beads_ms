@@ -171,7 +171,7 @@ test('world movement is normalized and bounded and sitting requires the local wo
     app.dispatch({ type: 'tick', deltaSeconds: 0.6 });
     assert.equal(app.getReadModel().avatar.z, 1.8);
     app.dispatch({ type: 'move', x: 1, z: 1, deltaSeconds: 100 });
-    assert.deepEqual(app.getReadModel().avatar, { x: 4, z: 3.2, yaw: Math.PI / 4 });
+    assert.deepEqual(app.getReadModel().avatar, { x: 5.5, z: 4.2, yaw: Math.PI / 4 });
 });
 
 test('a rejected redo during a fresh stroke does not silently end that stroke', () =>

@@ -17,6 +17,7 @@
         "start:server": "tsx server/main.ts",
         "test:multiplayer": "tsx --test Tests/Multiplayer*.test.ts",
         "selfcheck:multiplayer": "tsx scripts/multiplayer-selfcheck.ts",
+        "selfcheck:multiplayer-browser": "tsx scripts/multiplayer-browser-selfcheck.ts",
         "scenario": "tsx scripts/scenario.ts",
         "selfcheck": "node scripts/browser-selfcheck.mjs",
         "selfcheck:rendering": "node scripts/rendering-selfcheck.mjs",

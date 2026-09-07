@@ -66,6 +66,7 @@ export type PublicWork = Pick<SharedWork, 'id' | 'patternId' | 'patternSignature
     | 'stage' | 'coverage' | 'contributors' | 'artworkId'>;
 export interface RoomSnapshot
 {
+    history: Record<string, { canUndo: boolean; canRedo: boolean }>;
     protocolVersion: number;
     roomId: string;
     name: string;
@@ -80,6 +81,7 @@ export interface RoomSnapshot
 
 export interface RoomPatch
 {
+    history: Record<string, { canUndo: boolean; canRedo: boolean }>;
     roomId: string;
     workId: string;
     version: number;

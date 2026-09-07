@@ -3,6 +3,11 @@ import {
 } from 'three';
 
 import { WorkshopApplication } from './App/WorkshopApplication';
+import { OnlineWorkshopApplication } from './App/OnlineWorkshopApplication';
+import { MultiplayerClient } from './Networking/MultiplayerClient';
+import { RoomPanel } from './Ui/RoomPanel';
+import { PartnerView } from './Scene/PartnerView';
+import { WORKSHOP_LAYOUT } from './Core/Multiplayer/WorkshopLayout';
 import type { WorkshopCommand, WorkshopReadModel } from './App/WorkshopApplication';
 import { BeadBoardView } from './Rendering/BeadBoardView';
 import { BEAD_TOP_Y } from './Rendering/BeadDimensions';
@@ -24,7 +29,11 @@ if (root === null)
     throw new Error('[Workshop] Missing application root.');
 }
 
-const application = new WorkshopApplication();
+const localApplication = new WorkshopApplication();
+let application: WorkshopApplication | OnlineWorkshopApplication = localApplication;
+let online: OnlineWorkshopApplication | null = null;
+const ONLINE_KEY = 'fuse-beads.online-session.v1';
+const OUTBOX_KEY = 'fuse-beads.online-outbox.v1';
 const materials = new PainterlyMaterials(`${import.meta.env.BASE_URL}textures/painterly/`);
 const cameraRig = new WorkshopCamera();
 const scene = new Scene();
@@ -61,6 +70,13 @@ const hud = new WorkshopHud(root, {
     style: (profile) => materials.setProfile(profile),
     outline: (profile) => outline.setProfile(profile)
 });
+const roomPanel = new RoomPanel(root, {
+    create: (nickname, name) => connectRoom(nickname, { name }),
+    join: (nickname, roomId) => connectRoom(nickname, { roomId }),
+    leave: leaveRoom,
+    interrupt: interruptInput,
+    notify: (message) => hud.notify(message)
+});
 
 try
 {
@@ -82,10 +98,11 @@ const beadModels = await loadBeadModels(`${import.meta.env.BASE_URL}models/mini-
     throw error;
 });
 const environment = createWorkshopEnvironment(materials, beadModels);
+const partners = new PartnerView(environment.avatar, materials);
 const boardView = new BeadBoardView(materials, beadModels);
 boardView.root.position.copy(environment.boardPosition);
 const finishingView = new FinishingView(materials, environment.displayPosition, beadModels);
-scene.add(environment.root, boardView.root, finishingView.root);
+scene.add(environment.root, boardView.root, finishingView.root, partners.root);
 restoreSave();
 const initialAvatar = application.getReadModel().avatar;
 environment.avatar.position.set(initialAvatar.x, 0, initialAvatar.z);
@@ -104,10 +121,12 @@ materials.ready.then(() =>
     isReady = true;
     refreshView();
     cameraRig.initializeWorldView(environment.avatar.position);
+    environment.updateCutaway(cameraRig.camera.position, false);
     outline.render(scene, cameraRig.camera);
     hud.ready();
     previousTime = performance.now();
     frameRequest = requestAnimationFrame(frame);
+    void resumeOnline();
 }).catch((error: unknown) =>
 {
     if (disposed)
@@ -135,7 +154,7 @@ const iterationApi = {
         const rect = hud.canvas.getBoundingClientRect();
         return { x: rect.left + (hit.x + 1) * rect.width / 2, y: rect.top + (1 - hit.y) * rect.height / 2 };
     },
-    metrics(): object
+    metrics()
     {
         const sorted = [...frameTimes].sort((left, right) => left - right);
         return {
@@ -152,6 +171,15 @@ const iterationApi = {
             beadDimensions: boardView.dimensions,
             beadModels: boardView.metrics(),
             zoom: cameraRig.zoom,
+            online: online !== null,
+            connected: online?.client.ready ?? false,
+            roomId: online?.room.roomId ?? null,
+            playerId: online?.client.session?.playerId ?? null,
+            players: online?.room.players ?? [],
+            pending: online?.pendingCount ?? 0,
+            visibleWalls: ['CutawayBackWall', 'CutawayLeftWall', 'CutawayRightWall', 'CutawayFrontWall']
+                .filter((name) => environment.root.getObjectByName(name)?.visible),
+            partnerCount: partners.root.children.filter((object) => object.name.startsWith('Partner:')).length,
             webglError: renderer.getContext().getError()
         };
     }
@@ -177,7 +205,8 @@ function runCommand(command: WorkshopCommand): void
         const messages: Record<string, string> = {
             'workstation-out-of-range': '再走近一点，就可以坐下啦。',
             'artwork-not-ready': '先把图案上的每一颗颜色放对，再来熨烫。',
-            'collection-full': '本地收藏已经放满了，当前图案会继续保留。'
+            'collection-full': '本地收藏已经放满了，当前图案会继续保留。',
+            'not-connected': '连接暂时断开，正在重连；已确认的作品会保留。'
         };
 
         if (result.code !== undefined && messages[result.code] !== undefined)
@@ -204,7 +233,7 @@ function runCommand(command: WorkshopCommand): void
             hud.notify('完成了！这件小小的作品已经收进收藏。');
         }
 
-        if (command.type !== 'tick' && command.type !== 'move')
+        if (online === null && command.type !== 'tick' && command.type !== 'move')
         {
             window.clearTimeout(saveTimer);
             saveTimer = window.setTimeout(save, command.type === 'endStroke' ? 50 : 450);
@@ -218,10 +247,12 @@ function refreshView(): void
 
     if (model.revision !== lastViewRevision)
     {
-        hud.update(model, Math.hypot(model.avatar.x, model.avatar.z - 1.8) <= 1.35);
+        hud.update(model, online === null ? Math.hypot(model.avatar.x, model.avatar.z - 1.8) <= 1.35 : online.nearestSeat !== null);
         finishingView.sync(model);
         lastViewRevision = model.revision;
     }
+    hud.setOnline(online);
+    roomPanel.update(online);
 
     if (model.board.revision !== lastBoardRevision || model.pattern.patternId !== lastPattern
         || model.stage !== lastStage || model.ironProgress !== lastIronProgress)
@@ -266,17 +297,35 @@ function frame(now: number): void
 
         if (seated)
         {
-            avatarTarget.copy(environment.seatPosition);
+            if (online !== null && online.player?.seat !== null && online.player?.seat !== undefined)
+            {
+                const seat = WORKSHOP_LAYOUT.seats[online.player.seat];
+                avatarTarget.set(seat.x, -0.03, seat.z);
+            }
+            else { avatarTarget.copy(environment.seatPosition); }
         }
 
         environment.avatar.position.lerp(avatarTarget, 1 - Math.exp(-delta * 12));
-        environment.avatar.rotation.y = seated ? Math.PI : model.avatar.yaw;
+        environment.avatar.rotation.y = seated && online === null ? Math.PI : model.avatar.yaw;
         const walking = model.mode === 'workshop' && hasMovementKeys() && !hud.modalOpen;
         environment.update(elapsed, walking, seated);
+        cameraRig.setSeat(online?.player?.seat ?? 0);
         cameraRig.update(delta, model, environment.avatar.position);
+        environment.updateCutaway(cameraRig.camera.position, model.mode === 'beadwork');
+        const gallery = finishingView.root.getObjectByName('FinishedPlayerArtworks');
+        if (gallery !== undefined) { gallery.visible = environment.root.getObjectByName('CutawayBackWall')?.visible ?? true; }
+        partners.update(online?.room ?? null, online?.client.session?.playerId, boardView, delta, elapsed, model.mode === 'beadwork');
         boardView.setDetail(cameraRig.detailAmount);
         boardView.update(elapsed);
-        finishingView.update(elapsed, pointerWorld, pointerMode === 'iron');
+        let ironPoint = pointerWorld;
+        let ironing = pointerMode === 'iron';
+        if (online !== null && !online.ownsIron)
+        {
+            const holder = online.room.players.find((player) => player.playerId === online?.room.ironLease?.playerId);
+            ironing = holder?.cursor !== null && holder?.cursor !== undefined;
+            ironPoint = ironing ? boardView.cellWorld(holder!.cursor! % model.pattern.width, Math.floor(holder!.cursor! / model.pattern.width), hit) : null;
+        }
+        finishingView.update(elapsed, ironPoint, ironing);
         materials.update(elapsed);
         outline.render(scene, cameraRig.camera);
     }
@@ -329,6 +378,7 @@ function pickCell(event: PointerEvent): { x: number; y: number } | null
     }
 
     const cell = boardView.hitCell(hit);
+    online?.setCursor(cell);
 
     if (cell === null)
     {
@@ -368,6 +418,7 @@ function interruptInput(): void
     pointerMode = 'none';
     pointerWorld = null;
     boardView.setHover(null);
+    online?.setCursor(null);
     runCommand({ type: 'endStroke' });
 }
 
@@ -592,6 +643,7 @@ function bindInput(): void
 
 function save(): void
 {
+    if (online !== null) { return; }
     if (!storageWritable)
     {
         return;
@@ -599,7 +651,7 @@ function save(): void
 
     try
     {
-        localStorage.setItem(SAVE_KEY, application.exportSave());
+        localStorage.setItem(SAVE_KEY, localApplication.exportSave());
         hud.setSaveStatus('已保存到这台设备');
     }
     catch (error)
@@ -617,7 +669,7 @@ function restoreSave(): void
 
         if (serialized !== null)
         {
-            const result = application.dispatch({ type: 'restore', serialized });
+            const result = localApplication.dispatch({ type: 'restore', serialized });
 
             if (!result.accepted)
             {
@@ -635,6 +687,107 @@ function restoreSave(): void
     }
 }
 
+async function connectRoom(nickname: string, target: { name: string } | { roomId: string }): Promise<void>
+{
+    if (online !== null) { throw new Error('请先离开当前小店。'); }
+    if (!nickname.trim()) { throw new Error('先给自己取个名字吧。'); }
+    interruptInput();
+    save();
+    let token: string | undefined;
+    let savedCommands: unknown[] = [];
+    let savedPlayer: string | undefined;
+    try
+    {
+        token = JSON.parse(sessionStorage.getItem(ONLINE_KEY) ?? '{}').token;
+        const outbox = JSON.parse(sessionStorage.getItem(OUTBOX_KEY) ?? '{}');
+        savedCommands = Array.isArray(outbox.commands) ? outbox.commands : [];
+        savedPlayer = outbox.playerId;
+    }
+    catch { /* Session storage may be unavailable; normal single-player saves remain untouched. */ }
+    const url = import.meta.env.VITE_MULTIPLAYER_URL || location.origin;
+    const client = new MultiplayerClient(url, token === undefined ? { nickname } : { token });
+    try
+    {
+        const session = await client.connect();
+        const snapshot = 'name' in target
+            ? await client.create({ opId: crypto.randomUUID(), name: target.name })
+            : await client.join(target.roomId);
+        const instance = new OnlineWorkshopApplication(client, savedPlayer === session.playerId ? savedCommands : []);
+        online = instance;
+        application = instance;
+        instance.onNotice = (message) => hud.notify(message);
+        instance.persist = (commands) =>
+        {
+            try { sessionStorage.setItem(OUTBOX_KEY, JSON.stringify({ playerId: session.playerId, commands })); }
+            catch { hud.notify('浏览器暂时无法保存待确认操作，请保持页面开启。'); }
+        };
+        client.onError = (error) => hud.notify(error.message === 'session-replaced'
+            ? '同一身份已在另一页面连接，可用“新玩家打开测试”加入。' : '正在尝试恢复联机连接…');
+        try { sessionStorage.setItem(ONLINE_KEY, JSON.stringify({ token: session.token, nickname: session.nickname, roomId: snapshot.roomId })); }
+        catch { hud.notify('这次联机身份暂存于页面中，刷新后可能需要重新加入。'); }
+        resetViewCache();
+        cameraRig.initializeWorldView(environment.avatar.position);
+        hud.notify('已进入小店。走近任意空座位，按 E 一起拼豆。');
+    }
+    catch (error)
+    {
+        client.close();
+        throw error;
+    }
+}
+
+async function leaveRoom(): Promise<void>
+{
+    if (online === null) { return; }
+    const instance = online;
+    interruptInput();
+    await instance.drain();
+    await instance.client.leave();
+    instance.dispose();
+    online = null;
+    application = localApplication;
+    try
+    {
+        const saved = JSON.parse(sessionStorage.getItem(ONLINE_KEY) ?? '{}');
+        sessionStorage.setItem(ONLINE_KEY, JSON.stringify({ token: saved.token, nickname: saved.nickname }));
+        sessionStorage.removeItem(OUTBOX_KEY);
+    }
+    catch { /* Optional session persistence. */ }
+    history.replaceState(null, '', location.pathname);
+    resetViewCache();
+    hud.setSaveStatus('已回到本机作品');
+    save();
+}
+
+function resetViewCache(): void
+{
+    lastViewRevision = -1; lastBoardRevision = -1; lastPattern = ''; lastStage = ''; lastIronProgress = -1;
+    refreshView();
+}
+
+async function resumeOnline(): Promise<void>
+{
+    const query = new URL(location.href).searchParams;
+    const invited = query.get('room');
+    try
+    {
+        if (query.get('guest') === 'new')
+        {
+            sessionStorage.removeItem(ONLINE_KEY);
+            sessionStorage.removeItem(OUTBOX_KEY);
+            query.delete('guest');
+            history.replaceState(null, '', `${location.pathname}?${query}`);
+        }
+        const saved = JSON.parse(sessionStorage.getItem(ONLINE_KEY) ?? '{}');
+        if (saved.token && (invited === null || invited === saved.roomId) && saved.roomId)
+        {
+            await connectRoom(saved.nickname ?? '手作朋友', { roomId: saved.roomId });
+        }
+        else if (invited !== null) { roomPanel.open(invited); }
+    }
+    catch { hud.notify('暂未恢复联机，可点击“一起拼豆”重新加入。'); }
+}
+
 if (import.meta.hot)
 {
     import.meta.hot.dispose(() =>
@@ -645,6 +798,9 @@ if (import.meta.hot)
         window.clearTimeout(saveTimer);
         inputLifetime.abort();
         hud.dispose();
+        roomPanel.dispose();
+        online?.dispose();
+        partners.dispose();
         outline.dispose();
         boardView.dispose();
         finishingView.dispose();

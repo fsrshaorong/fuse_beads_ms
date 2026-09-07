@@ -24,6 +24,7 @@ import type { PainterlyRole } from '../Rendering/PainterlyMaterials';
 import { REFERENCE_PAINTERLY_PALETTE } from '../Rendering/ReferenceProfile';
 import { BOARD_SURFACE_Y } from '../Rendering/BeadDimensions';
 import type { BeadModels } from '../Rendering/BeadModels';
+import { WORKSHOP_LAYOUT } from '../Core/Multiplayer/WorkshopLayout';
 
 export interface WorkshopMaterialFactory
 {
@@ -40,6 +41,7 @@ export interface WorkshopEnvironment
     displayPosition: Vector3;
     workbench: Mesh;
     update(time: number, isWalking: boolean, isSeated: boolean): void;
+    updateCutaway(cameraPosition: Vector3, closeUp: boolean): void;
     dispose(): void;
 }
 
@@ -223,6 +225,11 @@ export function createWorkshopEnvironment(materials: WorkshopMaterialFactory, be
 
     // A dollhouse cutaway keeps the work surface visible from the overview camera.
     const architecture = assembly('WarmPlasterRoom');
+    const wallBack = assembly('CutawayBackWall');
+    const wallLeft = assembly('CutawayLeftWall');
+    const wallRight = assembly('CutawayRightWall');
+    const wallFront = assembly('CutawayFrontWall');
+    const roof = assembly('CutawayRoof');
     box(architecture, 'FloorPlinth', [9.08, 0.18, 7.48], [0, -0.14, 0], REFERENCE_PAINTERLY_PALETTE.ground, 'wood', 0.08).castShadow = false;
     box(architecture, 'FloorFoundation', [8.88, 0.12, 7.28], [0, -0.065, 0], REFERENCE_PAINTERLY_PALETTE.ground, 'floor').castShadow = false;
     for (let row = 0; row < 16; row += 1)
@@ -243,6 +250,41 @@ export function createWorkshopEnvironment(materials: WorkshopMaterialFactory, be
     box(architecture, 'LeftSkirting', [0.08, 0.21, 7.18], [-4.32, 0.13, -0.02], REFERENCE_PAINTERLY_PALETTE.cream, 'wood');
     box(architecture, 'BackPictureRail', [8.84, 0.065, 0.065], [0, 3.23, -3.52], REFERENCE_PAINTERLY_PALETTE.cream, 'wood');
     box(architecture, 'LeftPictureRail', [0.065, 0.065, 7.18], [-4.32, 3.23, -0.02], REFERENCE_PAINTERLY_PALETTE.cream, 'wood');
+    for (const child of [...architecture.children])
+    {
+        if (child.name.startsWith('Back'))
+        {
+            wallBack.add(child);
+            child.scale.x *= 11.8 / 8.9;
+            child.position.z -= 1.05;
+        }
+        else if (child.name.startsWith('Left'))
+        {
+            wallLeft.add(child);
+            child.scale.z *= 9.4 / 7.3;
+            child.position.x -= 1.45;
+        }
+        else
+        {
+            child.scale.x *= 11.8 / 8.9;
+            child.scale.z *= 9.4 / 7.3;
+            child.position.x *= 11.8 / 8.9;
+            child.position.z *= 9.4 / 7.3;
+        }
+    }
+    box(wallRight, 'RightPlasterWall', [0.18, 3.5, 9.4], [5.9, 1.75, 0], REFERENCE_PAINTERLY_PALETTE.background, 'wall', 0.06);
+    for (const x of [-3.38, 3.38])
+    {
+        box(wallFront, 'EntranceWall', [5.0, 3.5, 0.18], [x, 1.75, 4.7], REFERENCE_PAINTERLY_PALETTE.background, 'wall', 0.06);
+    }
+    box(wallFront, 'DoorLintel', [1.85, 0.80, 0.18], [0, 3.1, 4.7], REFERENCE_PAINTERLY_PALETTE.background, 'wall');
+    box(wallFront, 'SageShopDoor', [1.64, 2.68, 0.07], [0, 1.34, 4.66], REFERENCE_PAINTERLY_PALETTE.accent, 'wood');
+    box(wallFront, 'DoorWindow', [1.30, 1.55, 0.03], [0, 1.78, 4.60], REFERENCE_PAINTERLY_PALETTE.blue, 'ceramic');
+    box(roof, 'CreamCeiling', [11.8, 0.16, 9.4], [0, 3.57, 0], REFERENCE_PAINTERLY_PALETTE.cream, 'wall');
+    for (const wall of [wallBack, wallLeft, wallRight, wallFront, roof])
+    {
+        wall.traverse((object) => { object.castShadow = false; });
+    }
 
     const window = assembly('SageCurtainedWindow');
     box(window, 'WindowRecess', [0.075, 1.94, 2.56], [-4.305, 2.01, -0.63], REFERENCE_PAINTERLY_PALETTE.accent, 'wood').castShadow = false;
@@ -342,6 +384,18 @@ export function createWorkshopEnvironment(materials: WorkshopMaterialFactory, be
             new Vector3(Math.cos(angle) * 0.19, 0.40, 1.65 + Math.sin(angle) * 0.19),
             0.035, REFERENCE_PAINTERLY_PALETTE.woodDark, 'wood');
     }
+    for (let index = 1; index < WORKSHOP_LAYOUT.seats.length; index += 1)
+    {
+        const chair = assembly(`PartnerStool:${index}`);
+        const seat = WORKSHOP_LAYOUT.seats[index];
+        for (const source of stool.children)
+        {
+            const copy = source.clone();
+            copy.position.x += seat.x;
+            copy.position.z += seat.z - 1.65;
+            chair.add(copy);
+        }
+    }
 
     const cabinet = assembly('BeadLibraryCabinet');
     const cabinetX = -2.50;
@@ -397,6 +451,14 @@ export function createWorkshopEnvironment(materials: WorkshopMaterialFactory, be
     createPoster('GalleryCherryPrint', 0.46, 0.52, [1.85, 1.60, -2.99], 'cherry');
     createPoster('GalleryFlowerPrint', 0.45, 0.53, [3.52, 1.61, -2.99], 'flower');
     createPoster('GalleryTinyStar', 0.43, 0.47, [2.22, 2.87, -3.24], 'star');
+    createPoster('FriendsWallFlower', 0.78, 1.05, [0, 2.1, 0], 'flower');
+    createPoster('FriendsWallCherry', 0.78, 1.05, [0, 2.1, 0], 'cherry');
+    for (const [name, z] of [['FriendsWallFlower', -0.75], ['FriendsWallCherry', 0.65]] as const)
+    {
+        const poster = root.getObjectByName(name)!;
+        poster.rotation.y = -Math.PI / 2;
+        poster.position.set(5.76, 0, z);
+    }
 
     function createPoster(
         name: string,
@@ -607,6 +669,22 @@ export function createWorkshopEnvironment(materials: WorkshopMaterialFactory, be
     // Each named furniture assembly becomes a handful of material batches. Movable
     // avatars, gameplay meshes, and loose-bead instances retain their own identity.
     // Keep the source geometries too: merging detaches meshes from the scene graph.
+    window.position.x -= 1.45;
+    sunPatch.position.x -= 1.45;
+    for (const group of staticAssemblies)
+    {
+        if (['BeadLibraryCabinet', 'LittleColourGallery', 'BotanicalPixelPoster', 'LittleColourTypography',
+            'GalleryCherryPrint', 'GalleryFlowerPrint', 'GalleryTinyStar', 'CabinetPilea', 'GalleryLittlePlant'].includes(group.name))
+        {
+            group.position.z -= 1.05;
+        }
+        if (group.name === 'WindowHerbPot') { group.position.x -= 1.45; }
+    }
+    const entrance = assembly('WelcomeCorner');
+    box(entrance, 'EntranceMat', [2.25, 0.035, 1.12], [0, 0.04, 3.62], REFERENCE_PAINTERLY_PALETTE.fabric, 'fabric', 0.06);
+    box(entrance, 'WelcomeBench', [1.5, 0.10, 0.55], [4.55, 0.49, 2.65], REFERENCE_PAINTERLY_PALETTE.wood, 'wood');
+    for (const x of [3.94, 5.16]) { box(entrance, 'BenchLeg', [0.11, 0.44, 0.42], [x, 0.22, 2.65], REFERENCE_PAINTERLY_PALETTE.woodDark, 'wood'); }
+    plant('WelcomePlant', [-4.7, 0.04, 2.7], 1.25);
     root.traverse((object): void =>
     {
         if (object instanceof Mesh)
@@ -632,7 +710,28 @@ export function createWorkshopEnvironment(materials: WorkshopMaterialFactory, be
         seatPosition: new Vector3(0, -0.03, 1.65),
         standPosition: new Vector3(0, 0, 1.8),
         boardPosition: new Vector3(0, BOARD_SURFACE_Y, 0),
-        displayPosition: new Vector3(2.68, 1.43, -2.95),
+        displayPosition: new Vector3(2.68, 1.43, -4.0),
+        updateCutaway(cameraPosition: Vector3, closeUp: boolean): void
+        {
+            const direction = [cameraPosition.z, cameraPosition.x, -cameraPosition.x, -cameraPosition.z];
+            [wallBack, wallLeft, wallRight, wallFront].forEach((wall, index) =>
+            {
+                const threshold = wall.visible ? -0.8 : 0.8;
+                wall.visible = !closeUp && direction[index] > threshold;
+            });
+            window.visible = wallLeft.visible;
+            root.getObjectByName('WindowHerbPot')!.visible = wallLeft.visible;
+            for (const name of ['LittleColourGallery', 'BotanicalPixelPoster', 'LittleColourTypography',
+                'GalleryCherryPrint', 'GalleryFlowerPrint', 'GalleryTinyStar', 'GalleryLittlePlant'])
+            {
+                root.getObjectByName(name)!.visible = wallBack.visible;
+            }
+            for (const name of ['FriendsWallFlower', 'FriendsWallCherry'])
+            {
+                root.getObjectByName(name)!.visible = wallRight.visible;
+            }
+            roof.visible = !closeUp && cameraPosition.y < 3.15;
+        },
         update(time: number, isWalking: boolean, isSeated: boolean): void
         {
             if (disposed)

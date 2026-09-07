@@ -67,19 +67,21 @@ async function fixture(t: TestContext, count = 2)
     {
         if (seat === 1)
         {
-            await walk(client, 1, 0, 10);
+            await walk(client, 1, 0, 12);
             await walk(client, 0, -1, 12);
         }
         else if (seat === 3)
         {
-            await walk(client, -1, 0, 10);
+            await walk(client, -1, 0, 12);
             await walk(client, 0, -1, 12);
         }
         else if (seat === 2)
         {
-            await walk(client, 1, 0, 10);
-            await walk(client, 0, -1, 22);
-            await walk(client, -1, 0, 10);
+            const player = client.snapshot!.players.find((entry) => entry.playerId === client.session!.playerId)!;
+            await walk(client, 1, 0, Math.ceil((2.5 - player.x) / 0.2));
+            await walk(client, 0, -1, Math.ceil((player.z + 2.4) / 0.2));
+            const outside = client.snapshot!.players.find((entry) => entry.playerId === client.session!.playerId)!;
+            await walk(client, -1, 0, Math.round(outside.x / 0.2));
         }
         await client.seat(seat);
     }

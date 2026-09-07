@@ -8,6 +8,7 @@ import type {
 } from '../shared/MultiplayerProtocol';
 import { PROTOCOL_VERSION } from '../shared/MultiplayerProtocol';
 import { hash } from './SqliteStore';
+import { WORKSHOP_LAYOUT, advanceWorkshopPosition } from '../src/Core/Multiplayer/WorkshopLayout';
 import type { WorkshopStore } from './SqliteStore';
 
 interface LivePlayer extends PlayerPresence
@@ -27,7 +28,7 @@ interface LiveRoom
 }
 
 const RETIRED_PATTERNS = new Set(['pixel-heart', 'starter-heart', 'starter-star', 'starter-mushroom', 'starter-smile']);
-const SEATS = [{ x: 0, z: 1.8 }, { x: 1.8, z: 0 }, { x: 0, z: -1.8 }, { x: -1.8, z: 0 }];
+const SEATS = WORKSHOP_LAYOUT.seats;
 
 /** One process owns all live rooms. Every mutation is synchronous through the durable commit boundary. */
 export class RoomService
@@ -88,9 +89,12 @@ export class RoomService
         candidate.version += 1;
         this.store.saveRoom(candidate);
         room.state = candidate;
+        const spawn = WORKSHOP_LAYOUT.spawns.find((point) => [...room.players.values()]
+            .every((player) => Math.hypot(player.x - point.x, player.z - point.z) >= 0.65))
+            ?? WORKSHOP_LAYOUT.spawns[room.players.size % WORKSHOP_LAYOUT.spawns.length];
         room.players.set(session.playerId, existing === undefined ? {
             playerId: session.playerId, nickname: session.nickname, connected: true, socketId,
-            reservedUntil: Infinity, x: 0, z: 2.4, yaw: Math.PI, seat: null,
+            reservedUntil: Infinity, x: spawn.x, z: spawn.z, yaw: Math.PI, seat: null,
             selectedColor: 1, cursor: null, directionX: 0, directionZ: 0, inputAt: this.now(), sequence: -1
         } : { ...existing, socketId, connected: true, reservedUntil: Infinity,
             directionX: 0, directionZ: 0, inputAt: this.now(), sequence: -1 });
@@ -340,17 +344,7 @@ export class RoomService
                     continue;
                 }
                 const dx = player.directionX / Math.max(1, length), dz = player.directionZ / Math.max(1, length);
-                const x = Math.max(-4, Math.min(4, player.x + dx * delta * 2));
-                const z = Math.max(-3.2, Math.min(3.2, player.z + dz * delta * 2));
-                // Shared table footprint plus character clearance; diagonal motion slides along its edge.
-                if (Math.abs(x) >= 1.35 || Math.abs(player.z) >= 1.05)
-                {
-                    player.x = x;
-                }
-                if (Math.abs(player.x) >= 1.35 || Math.abs(z) >= 1.05)
-                {
-                    player.z = z;
-                }
+                Object.assign(player, advanceWorkshopPosition(player.x, player.z, dx, dz, delta));
                 player.yaw = Math.atan2(dx, dz);
             }
             this.onPresence(id, this.presence(room), now);
@@ -434,6 +428,7 @@ export class RoomService
         return structuredClone({
             protocolVersion: PROTOCOL_VERSION, roomId: state.id, name: state.name, hostId: state.hostId,
             version: state.version, pattern: getPattern(work.patternId), work,
+            history: publicHistory(state),
             ironLease: state.ironLease, proposal: state.proposal, players: this.presence(room)
         });
     }
@@ -468,6 +463,15 @@ function makePatch(before: RoomState, after: RoomState): RoomPatch
             ? [{ index, color, version: after.work.cellVersions[index] }] : []),
         coverage: after.work.coverage.flatMap((covered, index) => covered && !before.work.coverage[index] ? [index] : []),
         stage: after.work.stage, artworkId: after.work.artworkId, contributors: [...after.work.contributors],
+        history: publicHistory(after),
         ironLease: after.ironLease, proposal: after.proposal
     };
+}
+
+function publicHistory(room: RoomState): Record<string, { canUndo: boolean; canRedo: boolean }>
+{
+    return Object.fromEntries(Object.entries(room.work.histories).map(([id, history]) => [id, {
+        canUndo: history.undo.length > 0 || (history.active?.changes.length ?? 0) > 0,
+        canRedo: history.redo.length > 0
+    }]));
 }

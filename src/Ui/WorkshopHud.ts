@@ -1,4 +1,5 @@
 import type { WorkshopCommand, WorkshopReadModel } from '../App/WorkshopApplication';
+import type { OnlineWorkshopApplication } from '../App/OnlineWorkshopApplication';
 import { LEGACY_COMPLEX_PATTERN_IDS } from '../Core/Gameplay/Board/DetailedPatterns';
 import { getBeadColor, getBeadColorName } from '../Rendering/BeadPalette';
 import { BEAD_DIMENSIONS } from '../Rendering/BeadDimensions';
@@ -98,7 +99,36 @@ export class WorkshopHud
 
     public get modalOpen(): boolean
     {
-        return this.patternDialog.open || this.settingsDialog.open || this.collectionDialog.open || this.resetDialog.open;
+        return this.root.querySelector('dialog[open]') !== null;
+    }
+
+    public setOnline(online: OnlineWorkshopApplication | null): void
+    {
+        this.root.dataset.online = String(online !== null);
+        this.resetDialog.querySelector('p')!.textContent = online === null
+            ? '当前图案的拼豆和熨烫进度会清空，已经收藏的成品仍然保留。'
+            : '向伙伴发起重开提议，大家同意后开始新作品。当前作品保留为房间草稿。';
+        if (online === null)
+        {
+            this.require<HTMLButtonElement>('#pattern-button').disabled = false;
+            this.require<HTMLButtonElement>('#reset-button').disabled = false;
+            return;
+        }
+        const connected = online.client.ready;
+        this.setSaveStatus(!connected ? '正在重连，作品已保留' : online.pendingCount > 0 ? '正在同步作品…' : '联机作品已保存');
+        this.require<HTMLButtonElement>('#pattern-button').disabled = online.room.hostId !== online.client.session?.playerId || !connected;
+        this.require<HTMLButtonElement>('#reset-button').disabled = online.room.hostId !== online.client.session?.playerId || !connected;
+        const iron = this.require<HTMLButtonElement>('#iron-button');
+        if (online.room.work.stage === 'ironing')
+        {
+            iron.textContent = online.ownsIron ? '放下熨斗，交给伙伴' : online.room.ironLease === null ? '接过熨斗，继续制作' : '伙伴正在熨烫';
+            iron.disabled = !connected || (online.room.ironLease !== null && !online.ownsIron) || this.lastModel?.mode !== 'beadwork';
+        }
+        if (!connected)
+        {
+            this.primary.disabled = true;
+            for (const button of this.root.querySelectorAll<HTMLButtonElement>('.tool-dock button, .palette button, #iron-button')) { button.disabled = true; }
+        }
     }
 
     /** Projects immutable craft state; avoids rebuilding the palette while a pointer is active. */

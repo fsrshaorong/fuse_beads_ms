@@ -210,7 +210,8 @@ export class MultiplayerClient
         work.stage = patch.stage;
         work.artworkId = patch.artworkId;
         work.contributors = [...patch.contributors];
-        this.snapshot = { ...current, version: patch.version, work, ironLease: patch.ironLease, proposal: patch.proposal };
+        this.snapshot = { ...current, version: patch.version, work, ironLease: patch.ironLease,
+            proposal: patch.proposal, history: patch.history };
         this.onState(this.snapshot);
     }
 

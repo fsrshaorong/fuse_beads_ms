@@ -1,4 +1,5 @@
 import { NumberedBeadPaintingSession } from '../Core/Gameplay/Board/NumberedBeadPaintingSession';
+import { advanceWorkshopPosition } from '../Core/Multiplayer/WorkshopLayout';
 import type { NumberedBeadBoardReadModel, NumberedBeadPattern } from '../Core/Gameplay/Board/NumberedBeadBoard';
 import { DEFAULT_PLAYABLE_PATTERN, PLAYABLE_PATTERN_CATALOG } from '../Core/Gameplay/Board/PlayablePatterns';
 import { completeWorkshopTransition, createWorkshopInteractionState, tryBeginWorkshopTransition } from '../Core/Gameplay/Workshop/WorkshopInteractionFlow';
@@ -303,9 +304,9 @@ export class WorkshopApplication
         const length = Math.hypot(x / scale, z / scale);
         const directionX = (x / scale) / length;
         const directionZ = (z / scale) / length;
-        const distance = Math.min(deltaSeconds, 100) * 2;
-        const nextX = Math.max(-4, Math.min(4, this.avatar.x + directionX * distance));
-        const nextZ = Math.max(-3.2, Math.min(3.2, this.avatar.z + directionZ * distance));
+        const next = advanceWorkshopPosition(this.avatar.x, this.avatar.z, directionX, directionZ, Math.min(deltaSeconds, 100));
+        const nextX = next.x;
+        const nextZ = next.z;
         const yaw = Math.atan2(directionX, directionZ);
         const changed = nextX !== this.avatar.x || nextZ !== this.avatar.z || yaw !== this.avatar.yaw;
         this.avatar = { x: nextX, z: nextZ, yaw };

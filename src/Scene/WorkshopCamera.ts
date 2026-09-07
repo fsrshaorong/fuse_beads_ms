@@ -68,6 +68,7 @@ export class WorkshopCamera
     private panX = 0;
     private panZ = 0;
     private currentDetail = 0;
+    private seatAngle = 0;
 
     /** Starts with the complete workshop visible in a long-lens perspective. */
     public constructor()
@@ -81,6 +82,11 @@ export class WorkshopCamera
     public get zoom(): number
     {
         return this.zoomState.currentZoom;
+    }
+
+    public setSeat(seat: number | null): void
+    {
+        this.seatAngle = (seat ?? 0) * Math.PI / 2;
     }
 
     /** Label opacity includes mode transitions; the full editable board is legible. */
@@ -274,16 +280,17 @@ export class WorkshopCamera
                 MathUtils.clamp(this.lastAvatarPosition.x * 0.055, -0.23, 0.23),
                 0.7,
                 MathUtils.clamp(this.lastAvatarPosition.z * 0.055, -0.2, 0.2));
-            const horizontal = Math.cos(this.worldElevation) * this.worldDistance;
+            const horizontal = Math.cos(this.worldElevation) * this.worldDistance * 1.16;
             output.position.set(
                 Math.sin(this.worldYaw) * horizontal,
-                Math.sin(this.worldElevation) * this.worldDistance,
+                Math.sin(this.worldElevation) * this.worldDistance * 1.16,
                 Math.cos(this.worldYaw) * horizontal).add(this.target);
         }
         else if (mode === 'tabletop')
         {
             this.target.copy(BOARD_CENTER);
             output.position.set(0, 3.4, 3.9);
+            output.position.applyAxisAngle(UP, this.seatAngle);
         }
         else
         {
