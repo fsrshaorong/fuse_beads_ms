@@ -68,7 +68,9 @@ try
     await page.keyboard.down('KeyD');
     await page.waitForTimeout(170);
     await page.keyboard.up('KeyD');
-    assert.ok((await read()).avatar.x > start.avatar.x, 'real WASD moves the avatar');
+    const moved = (await read()).avatar;
+    assert.ok(moved.x > start.avatar.x && moved.z < start.avatar.z,
+        'D follows the default angled camera right direction across both ground axes');
     await page.keyboard.press('KeyE');
     await waitMode('tabletop');
     await page.waitForTimeout(150);
@@ -193,7 +195,7 @@ try
     assert.deepEqual(errors, [], 'browser and shader console stays clean');
     const report = { passed: true, viewport: '1280x720', metrics, errors, checks: [
         'static idle scene', 'reference style controls and reset', 'visible outline toggle and reset',
-        'physical movement', 'sit/focus/return', 'entry-click gate', 'drag interpolation',
+        'camera-relative movement', 'sit/focus/return', 'entry-click gate', 'drag interpolation',
         'stroke undo/redo', 'continuous zoom', 'save/reload', 'ironing pointer',
         'HUD captured-pointer isolation', 'restored ironing visibility',
         'finished collection', 'four aspect ratios', 'zero WebGL errors'

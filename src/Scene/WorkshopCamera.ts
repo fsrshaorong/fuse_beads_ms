@@ -48,6 +48,7 @@ export class WorkshopCamera
     private readonly target = new Vector3();
     private readonly orientation = new Matrix4();
     private readonly projected = new Vector3();
+    private readonly movementForward = new Vector3();
     private readonly lastAvatarPosition = new Vector3();
     private zoomState = createWorkshopBeadworkZoomState();
     private mode: WorkshopReadModel['mode'] = 'workshop';
@@ -94,6 +95,29 @@ export class WorkshopCamera
         this.lastAvatarPosition.copy(avatarPosition);
         this.writeStablePose('workshop', this.pose);
         this.applyPose(this.pose);
+    }
+
+    /** Converts camera-relative input to a level world direction using the visible camera pose. */
+    public getWalkDirection(right: number, forward: number, target: Vector3): Vector3
+    {
+        if (!Number.isFinite(right) || !Number.isFinite(forward))
+        {
+            return target.set(0, 0, 0);
+        }
+        this.camera.getWorldDirection(this.movementForward);
+        this.movementForward.y = 0;
+        if (this.movementForward.lengthSq() < 0.000001)
+        {
+            // At an overhead view, the camera's right axis still defines the ground heading.
+            this.movementForward.setFromMatrixColumn(this.camera.matrixWorld, 0);
+            this.movementForward.set(this.movementForward.z, 0, -this.movementForward.x);
+        }
+        this.movementForward.normalize();
+        return target.set(
+            -this.movementForward.z * right + this.movementForward.x * forward,
+            0,
+            this.movementForward.x * right + this.movementForward.z * forward
+        ).normalize();
     }
 
     /** Fits the same physical board around the top/bottom HUD and right panel. */

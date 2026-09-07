@@ -36,7 +36,7 @@ export class WorkshopHud
     {
         container.innerHTML = `
             <main class="atelier" data-mode="workshop">
-                <canvas class="world-canvas" aria-label="三维拼豆工作室，可使用 WASD 移动，E 坐下" tabindex="0"></canvas>
+                <canvas class="world-canvas" aria-label="三维拼豆工作室，可使用 WASD 随镜头移动，E 坐下" tabindex="0"></canvas>
                 <div class="scene-vignette" aria-hidden="true"></div>
                 <header class="masthead">
                     <a class="brand" href="#" aria-label="豆间工作室">
@@ -67,7 +67,7 @@ export class WorkshopHud
                     <button id="redo-button" class="tool-button" aria-label="重做"><span>↷</span>重做</button>
                     <i></i><button id="reset-button" class="tool-button subtle" aria-label="重新制作">重新来过</button>
                 </div>
-                <footer class="bottom-bar"><div class="context-hint"><span class="context-dot"></span><div><strong id="context-title">窗边的工作台空着呢</strong><p id="context-instructions">WASD 走动 · 右键拖动观察 · 滚轮调整远近</p></div></div><button class="primary-button" id="primary-button">坐到工作台 <kbd>E</kbd> ${ARROW}</button></footer>
+                <footer class="bottom-bar"><div class="context-hint"><span class="context-dot"></span><div><strong id="context-title">窗边的工作台空着呢</strong><p id="context-instructions">WASD 随镜头移动 · 右键拖动观察 · 滚轮调整远近</p></div></div><button class="primary-button" id="primary-button">坐到工作台 <kbd>E</kbd> ${ARROW}</button></footer>
                 <div class="toast" role="status" aria-live="polite"></div>
                 <div class="loading-screen"><span class="bead-mark"><i></i><i></i><i></i><i></i></span><p>正在整理你的手作桌…</p></div>
                 <dialog class="paper-dialog pattern-dialog"><div class="dialog-top"><span class="eyebrow">A SMALL COLLECTION OF IDEAS</span><button data-close aria-label="关闭">×</button></div><h2>今天，想拼点什么？</h2><p>每张图案都会保留自己的制作进度。</p><div id="pattern-grid" class="pattern-grid"></div></dialog>
@@ -165,7 +165,7 @@ export class WorkshopHud
             this.primary.innerHTML = `坐到工作台 <kbd>E</kbd> ${ARROW}`;
             this.primary.disabled ||= !canSit;
             this.text('#context-title', canSit ? '窗边的工作台空着呢' : '走近窗边的工作台');
-            this.text('#context-instructions', 'WASD 走动 · 右键拖动观察 · 滚轮调整远近');
+            this.text('#context-instructions', 'WASD 随镜头移动 · 右键拖动观察 · 滚轮调整远近');
         }
         else if (mode === 'tabletop')
         {

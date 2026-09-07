@@ -35,6 +35,7 @@ const raycaster = new Raycaster();
 const hit = new Vector3();
 const boardPlane = new Plane(new Vector3(0, 1, 0), -BEAD_TOP_Y);
 const avatarTarget = new Vector3();
+const walkDirection = new Vector3();
 let renderer: WebGLRenderer;
 let frameRequest = 0;
 let pointerMode: 'none' | 'paint' | 'iron' | 'orbit' | 'pan' = 'none';
@@ -295,7 +296,8 @@ function updateMovement(delta: number): void
 
     if (application.getReadModel().mode === 'workshop')
     {
-        application.dispatch({ type: 'move', x, z, deltaSeconds: delta });
+        cameraRig.getWalkDirection(x, -z, walkDirection);
+        application.dispatch({ type: 'move', x: walkDirection.x, z: walkDirection.z, deltaSeconds: delta });
     }
     else if (application.getReadModel().mode === 'beadwork')
     {
