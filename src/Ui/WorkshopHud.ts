@@ -17,6 +17,11 @@ interface HudActions
 
 const ARROW = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M5 12h14m-6-6 6 6-6 6"/></svg>';
 
+/** Hidden from new selections; definitions remain available for saved drafts and collections. */
+const RETIRED_PATTERN_IDS = new Set([
+    'pixel-heart', 'starter-heart', 'starter-star', 'starter-mushroom', 'starter-smile'
+]);
+
 /** Small paper-like HTML interface; all craft actions dispatch the same application commands as CLI. */
 export class WorkshopHud
 {
@@ -323,6 +328,10 @@ export class WorkshopHud
 
         const grid = this.require('#pattern-grid');
         grid.replaceChildren();
+        const heading = document.createElement('h3');
+        heading.className = 'pattern-group-title';
+        heading.textContent = '细致图案 · 50 × 50';
+        grid.append(heading);
         const archive = document.createElement('details');
         archive.className = 'pattern-archive';
         archive.open = LEGACY_COMPLEX_PATTERN_IDS.includes(model.pattern.patternId);
@@ -331,20 +340,15 @@ export class WorkshopHud
         const archiveGrid = document.createElement('div');
         archiveGrid.className = 'pattern-grid';
         archive.append(archiveTitle, archiveGrid);
-        let currentGroup = '';
 
         for (const pattern of model.patterns)
         {
-            const legacy = LEGACY_COMPLEX_PATTERN_IDS.includes(pattern.patternId);
-            const group = pattern.width >= 40 ? '细致图案 · 50 × 50' : '轻松小图案';
-            if (!legacy && group !== currentGroup)
+            if (RETIRED_PATTERN_IDS.has(pattern.patternId))
             {
-                const heading = document.createElement('h3');
-                heading.className = 'pattern-group-title';
-                heading.textContent = group;
-                grid.append(heading);
-                currentGroup = group;
+                continue;
             }
+
+            const legacy = LEGACY_COMPLEX_PATTERN_IDS.includes(pattern.patternId);
             const button = document.createElement('button');
             button.className = 'pattern-option';
             const canvas = document.createElement('canvas');
