@@ -5,6 +5,8 @@ import {
 import { WorkshopApplication } from './App/WorkshopApplication';
 import type { WorkshopCommand, WorkshopReadModel } from './App/WorkshopApplication';
 import { BeadBoardView } from './Rendering/BeadBoardView';
+import { BEAD_DIMENSIONS, BEAD_TOP_Y } from './Rendering/BeadDimensions';
+import { loadBeadModels } from './Rendering/BeadModels';
 import { PainterlyMaterials } from './Rendering/PainterlyMaterials';
 import { PainterlyOutline } from './Rendering/PainterlyOutline';
 import { configurePainterlyRenderer, createPainterlyLighting } from './Rendering/PainterlyLighting';
@@ -31,7 +33,7 @@ const keys = new Set<string>();
 const pointer = new Vector2();
 const raycaster = new Raycaster();
 const hit = new Vector3();
-const boardPlane = new Plane(new Vector3(0, 1, 0), -1.23);
+const boardPlane = new Plane(new Vector3(0, 1, 0), -BEAD_TOP_Y);
 const avatarTarget = new Vector3();
 let renderer: WebGLRenderer;
 let frameRequest = 0;
@@ -73,10 +75,15 @@ configurePainterlyRenderer(renderer, window.devicePixelRatio);
 const outline = new PainterlyOutline(renderer);
 const lighting = createPainterlyLighting(new Vector3(1.27, 1.54, -0.96));
 scene.add(lighting);
-const environment = createWorkshopEnvironment(materials);
-const boardView = new BeadBoardView(materials);
+const beadModels = await loadBeadModels(`${import.meta.env.BASE_URL}models/bead-kit.glb`).catch((error: unknown) =>
+{
+    hud.fail('拼豆模型加载失败，请刷新重试。');
+    throw error;
+});
+const environment = createWorkshopEnvironment(materials, beadModels);
+const boardView = new BeadBoardView(materials, beadModels);
 boardView.root.position.copy(environment.boardPosition);
-const finishingView = new FinishingView(materials, environment.displayPosition);
+const finishingView = new FinishingView(materials, environment.displayPosition, beadModels);
 scene.add(environment.root, boardView.root, finishingView.root);
 restoreSave();
 const initialAvatar = application.getReadModel().avatar;
@@ -141,6 +148,8 @@ const iterationApi = {
             textures: renderer.info.memory.textures,
             ironingToolVisible: finishingView.root.getObjectByName('MiniatureCraftIron')?.visible ?? false,
             outlineEnabled: outline.getProfile().enabled,
+            beadDimensions: BEAD_DIMENSIONS,
+            beadModels: boardView.metrics(),
             zoom: cameraRig.zoom,
             webglError: renderer.getContext().getError()
         };
@@ -180,6 +189,12 @@ function runCommand(command: WorkshopCommand): void
 
     if (result.changed)
     {
+        // A restored draft can have the same local board revision and coverage
+        // count as the previous one while containing different cells or hot spots.
+        if (command.type === 'restore')
+        {
+            lastBoardRevision = -1;
+        }
         refreshView();
         const model = application.getReadModel();
 
@@ -631,6 +646,7 @@ if (import.meta.hot)
         boardView.dispose();
         finishingView.dispose();
         environment.dispose();
+        beadModels.dispose();
         lighting.traverse((object) =>
         {
             if (object instanceof DirectionalLight)

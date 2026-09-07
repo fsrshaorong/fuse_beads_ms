@@ -15,7 +15,7 @@ npm ci
 npm run dev
 ```
 
-打开 <http://127.0.0.1:5173/>。六张美术纹理已包含在仓库里，`prepare:assets` 只检查本地文件。运行时不连接参考网站、CDN 或游戏服务器。
+打开 <http://127.0.0.1:5173/>。六张美术纹理和 Blender GLB 已包含在仓库里，`prepare:assets` 只检查本地文件。运行时不连接参考网站、CDN 或游戏服务器，也不需要安装 Blender。
 
 ```powershell
 npm run build
@@ -28,9 +28,9 @@ npm run preview
 
 - 工作室：WASD 走动，右键拖动观察，滚轮调整距离；走近工作台按 E 坐下。
 - 桌面：点击棋盘或向前滚轮，沿同一摄影机平滑进入拼豆；进入的第一次点击不会落豆。
-- 拼豆：13 张图案，数字选色，点击或连续拖动放豆；B 放豆、X 擦除，支持整笔撤销/重做。错色保留目标编号。
+- 拼豆：14 张图案，新访客从 29×29 草莓吊饰开始，背景留空；已有存档保留原作品。数字选色，点击或连续拖动放豆；B 放豆、X 擦除，支持整笔撤销/重做。错色保留目标编号。
 - 近景：滚轮连续缩放；WASD 或空格拖动平移。拉远到全板后停稳，再向后滚动返回桌面；E 起身。
-- 熨烫：图案正确后按住拖动熨斗覆盖成品，松开暂停，完成后收进本地收藏与陈列架。
+- 熨烫：图案正确后按住拖动熨斗，经过的豆逐格压低、缩孔、摊开上缘，松开暂停，完成后收进本地收藏与陈列架。
 - 美术：右上按钮调整笔触、暖光、阴影及描边粗细；轮廓描边默认开启，可单独关闭。“恢复参考效果”恢复材质与描边默认值。模型、笔触和描边没有时间抖动。
 
 存档键为 `fuse-beads.web-playground.v1`，兼容拆分前同源页面的本地作品。保存各图案草稿、选色、熨烫覆盖与成品；刷新从工作室恢复。撤销历史仅限当前会话。损坏存档保留原值并暂停覆盖。
@@ -43,7 +43,7 @@ npm run preview
 | 数字填色、整笔历史与三层交互规则 | `src/Core/Gameplay/` |
 | 世界、桌面、拼豆的连续镜头 | `src/Scene/WorkshopCamera.ts` |
 | 家具、人物、场景色板与建模 | `src/Scene/WorkshopEnvironment.ts` |
-| 有贯穿孔和倒角的实例化拼豆 | `src/Rendering/BeadBoardView.ts` |
+| 固定毫米比例、Blender 模型、实例化拼豆 | `src/Rendering/BeadDimensions.ts`、`BeadModels.ts`、`BeadBoardView.ts` |
 | 参考配置、笔触与光影公式 | `src/Rendering/ReferenceProfile.ts`、`PainterlyShaders.ts`、`PainterlyMaterials.ts` |
 | 五盏灯、阴影与颜色输出 | `src/Rendering/PainterlyLighting.ts` |
 | 家具、人物和实例化拼豆的稳定描边 | `src/Rendering/PainterlyOutline.ts` |
@@ -52,7 +52,11 @@ npm run preview
 
 渲染对照说明见 [docs/RENDERING.md](docs/RENDERING.md)，迁移与资产来源见 [docs/PROVENANCE.md](docs/PROVENANCE.md)。场景布局是拼豆工作室，渲染以指定参考页面的实际公式和参数为准。
 
-模型目前为程序化美术样板：空心豆为 28 段旋转剖面，工作室有家具、灯、收纳罐、工具、布帘与植物。还没有最终 Blender 精修资产、模型 LOD、音效、揭纸动画、豆间熔接桥或成品自由旋转。桌面键鼠是当前验收目标，触屏未完成验收。
+拼豆由 Blender 参数化生成，板上、散豆和成品共用同一套模型。未熨烫外径 4.77 mm、高 5.07 mm，板为 145 mm、29×29 钉位；换图不改变豆子大小。相机缩放负责近距离看清细节。孔径、口沿和熨烫形态是明确记录的美术估值，来源和重建方法见 [拼豆模型说明](docs/BEAD_MODELS.md)。
+
+![Blender 拼豆的网页近景](docs/images/beads-detail.png)
+
+`.blend` 源文件在 `assets/models/bead-kit.blend`，网页实际加载 `public/models/bead-kit.glb`。房间家具仍为程序化美术样板；当前未做模型 LOD、音效、揭纸动画、真实热力/熔接模拟或成品自由旋转。桌面键鼠是当前验收目标，触屏未完成验收。
 
 ## 验证
 
@@ -63,10 +67,11 @@ npm run --silent scenario -- finish
 npm run selfcheck
 npm run selfcheck:rendering
 npm run selfcheck:outline
+npm run selfcheck:beads
 ```
 
 `selfcheck` 需先启动开发服务及安装 Chrome；可用 `ATELIER_BROWSER` 指定浏览器路径，`ATELIER_URL` 指定服务地址。测试使用独立浏览器 context，不改当前试玩页存档。截图与报告保存在忽略目录 `artifacts/`。
 
-渲染自检会联网获取原站着色代码作为独立对照；已有缓存后可用 `npm run selfcheck:rendering -- --offline`。应用本身不需要该网络访问。
+渲染自检会联网获取原站着色代码作为独立对照；已有缓存后可用 `npm run selfcheck:rendering -- --offline`。`selfcheck:beads` 用独立浏览器验证加载后的毫米尺寸、29 格拖动、逐颗熨烫、恢复和收藏，并保存新模型截图。应用本身不需要该网络访问。
 
 公开 `window.beadsAtelier.dispatch/read/projectCell/metrics` 供本地工具使用；dispatch 与 UI、CLI 共用 Application 入口。纯值测试覆盖作品往返、整笔历史、存档、熨烫恢复和镜头边界；浏览器测试覆盖真实键鼠完整路径与四个桌面尺寸。

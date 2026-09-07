@@ -7,14 +7,12 @@ import {
     ExtrudeGeometry,
     Group,
     InstancedMesh,
-    LatheGeometry,
     Mesh,
     MeshStandardMaterial,
     Object3D,
     PlaneGeometry,
     Shape,
     TubeGeometry,
-    Vector2,
     Vector3
 } from 'three';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
@@ -25,9 +23,11 @@ import type {
 } from '../App/WorkshopApplication';
 import { getBeadColor } from '../Rendering/BeadPalette';
 import type { PainterlyMaterials } from '../Rendering/PainterlyMaterials';
+import type { BeadModels } from '../Rendering/BeadModels';
+import { BEAD_PITCH, BEAD_TOP_Y, BOARD_SIZE } from '../Rendering/BeadDimensions';
 
 const MAXIMUM_DISPLAYED_ARTWORKS = 3;
-const PAPER_HEIGHT = 1.27;
+const PAPER_HEIGHT = BEAD_TOP_Y + 0.002;
 
 /** Displays a physical finishing tool and the player's actual frozen artwork records. */
 export class FinishingView
@@ -40,7 +40,7 @@ export class FinishingView
     private readonly ownedGeometries: BufferGeometry[] = [];
     private readonly ownedMaterials: MeshStandardMaterial[] = [];
     private readonly displayPosition: Vector3;
-    private readonly displayBeadGeometry: LatheGeometry;
+    private readonly displayBeadGeometry: BufferGeometry;
     private readonly displayBaseGeometry: RoundedBoxGeometry;
     private readonly displayStandGeometry: RoundedBoxGeometry;
     private readonly indicatorMaterial: MeshStandardMaterial;
@@ -52,27 +52,29 @@ export class FinishingView
 
     public constructor(
         private readonly materials: PainterlyMaterials,
-        displayPosition: Vector3
+        displayPosition: Vector3,
+        beadModels: BeadModels
     )
     {
         this.root.name = 'FinishingAndPersonalGallery';
         this.displayPosition = displayPosition.clone();
         this.iron.name = 'MiniatureCraftIron';
-        this.iron.position.set(0.48, PAPER_HEIGHT + 0.08, 0.35);
+        this.iron.position.set(0.20, PAPER_HEIGHT + 0.08, 0.20);
         this.iron.visible = false;
         this.root.add(this.iron);
         this.collection.name = 'FinishedPlayerArtworks';
         this.root.add(this.collection);
 
-        const paperGeometry = this.ownGeometry(new PlaneGeometry(1.62, 1.62, 12, 12));
+        const paperSize = BOARD_SIZE + 0.04;
+        const paperGeometry = this.ownGeometry(new PlaneGeometry(paperSize, paperSize, 12, 12));
         paperGeometry.rotateX(-Math.PI / 2);
         const paperPositions = paperGeometry.getAttribute('position');
         for (let vertex = 0; vertex < paperPositions.count; vertex += 1)
         {
             const x = paperPositions.getX(vertex);
             const z = paperPositions.getZ(vertex);
-            const edge = Math.max(0, Math.max(Math.abs(x), Math.abs(z)) - 0.68) / 0.13;
-            paperPositions.setY(vertex, edge * edge * 0.009);
+            const edge = Math.max(0, Math.max(Math.abs(x), Math.abs(z)) - paperSize * 0.44) / (paperSize * 0.06);
+            paperPositions.setY(vertex, edge * edge * 0.004);
         }
         paperGeometry.computeVertexNormals();
         const paperMaterial = this.ownMaterial(new MeshStandardMaterial({
@@ -145,18 +147,8 @@ export class FinishingView
         indicator.position.set(0.054, 0.091, -0.021);
         this.iron.add(indicator);
 
-        // One real hollow cross-section is instanced for every non-empty saved cell.
-        this.displayBeadGeometry = this.ownGeometry(new LatheGeometry([
-            new Vector2(0.43, 0),
-            new Vector2(0.475, 0.055),
-            new Vector2(0.475, 0.48),
-            new Vector2(0.43, 0.535),
-            new Vector2(0.255, 0.535),
-            new Vector2(0.22, 0.48),
-            new Vector2(0.22, 0.055),
-            new Vector2(0.255, 0),
-            new Vector2(0.43, 0)
-        ], 16));
+        // The same physical fused Blender bead, turned upright for the display stand.
+        this.displayBeadGeometry = this.ownGeometry(beadModels.fused.clone());
         this.displayBeadGeometry.rotateX(Math.PI / 2);
         this.displayBaseGeometry = this.ownGeometry(new RoundedBoxGeometry(0.352, 0.041, 0.13, 2, 0.013));
         this.displayStandGeometry = this.ownGeometry(new RoundedBoxGeometry(0.07, 0.15, 0.034, 2, 0.012));
@@ -204,8 +196,8 @@ export class FinishingView
         const isPressing = held && cursorWorld !== null;
         if (cursorWorld !== null)
         {
-            this.iron.position.x = Math.max(-0.70, Math.min(0.70, cursorWorld.x));
-            this.iron.position.z = Math.max(-0.65, Math.min(0.67, cursorWorld.z));
+            this.iron.position.x = Math.max(-BOARD_SIZE / 2, Math.min(BOARD_SIZE / 2, cursorWorld.x));
+            this.iron.position.z = Math.max(-BOARD_SIZE / 2, Math.min(BOARD_SIZE / 2, cursorWorld.z));
         }
         const desiredHeight = PAPER_HEIGHT + (isPressing ? 0.012 : 0.079);
         const smoothing = 1 - Math.exp(-delta * 24);
@@ -265,7 +257,7 @@ export class FinishingView
             const piece = new Group();
             piece.name = `FinishedArtwork:${artwork.artworkId}`;
             piece.userData = { artworkId: artwork.artworkId, patternId: artwork.patternId, title: artwork.name };
-            const horizontalOffset = (artworkIndex - (this.displayedArtworks.length - 1) / 2) * 0.395;
+            const horizontalOffset = (artworkIndex - (this.displayedArtworks.length - 1) / 2) * 0.74;
             piece.position.set(this.displayPosition.x + horizontalOffset,
                 this.displayPosition.y - 0.126, this.displayPosition.z);
             this.collection.add(piece);
@@ -288,7 +280,19 @@ export class FinishingView
             beads.userData.artworkId = artwork.artworkId;
             beads.castShadow = true;
             beads.receiveShadow = true;
-            const pitch = 0.325 / Math.max(artwork.width, artwork.height);
+            const pitch = BEAD_PITCH;
+            let firstColumn = artwork.width;
+            let lastColumn = 0;
+            let lastRow = 0;
+            for (let index = 0; index < artwork.cells.length; index += 1)
+            {
+                if (artwork.cells[index] > 0)
+                {
+                    firstColumn = Math.min(firstColumn, index % artwork.width);
+                    lastColumn = Math.max(lastColumn, index % artwork.width);
+                    lastRow = Math.max(lastRow, Math.floor(index / artwork.width));
+                }
+            }
             let instance = 0;
             for (let index = 0; index < artwork.cells.length; index += 1)
             {
@@ -300,9 +304,9 @@ export class FinishingView
                 }
                 const column = index % artwork.width;
                 const row = Math.floor(index / artwork.width);
-                marker.position.set((column - (artwork.width - 1) / 2) * pitch,
-                    0.027 + (artwork.height - row - 0.5) * pitch, 0);
-                marker.scale.set(pitch, pitch, pitch * 0.78);
+                marker.position.set((column - (firstColumn + lastColumn) / 2) * pitch,
+                    0.037 + (lastRow - row) * pitch, 0.025);
+                marker.scale.setScalar(1);
                 marker.updateMatrix();
                 beads.setMatrixAt(instance, marker.matrix);
                 color.set(getBeadColor(paletteEntry.colorId));

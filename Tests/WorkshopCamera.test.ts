@@ -4,6 +4,9 @@ import { Vector3 } from 'three';
 
 import { WorkshopApplication } from '../src/App/WorkshopApplication.ts';
 import { WorkshopCamera } from '../src/Scene/WorkshopCamera.ts';
+import {
+    BEAD_PITCH, BEAD_TOP_Y, BOARD_SIZE, BOARD_SURFACE_Y, BOARD_THICKNESS
+} from '../src/Rendering/BeadDimensions.ts';
 
 const AVATAR_POSITION = new Vector3(0, 0, 1.8);
 
@@ -64,23 +67,27 @@ test('all four mode transitions meet the settled camera without a final pose or 
 
 test('the full physical board fits between the desktop HUD and the color panel', () =>
 {
-    for (const [width, height] of [[1280, 720], [1920, 1080]])
+    for (const [width, height] of [[1280, 720], [1366, 768], [1440, 900], [1920, 1080]])
     {
         const rig = new WorkshopCamera();
         rig.resize(width, height);
         enterBoard(rig);
+        let highest = height;
+        let lowest = 0;
 
         // These are the actual board envelope and the reserved UI clearances,
         // independent of the camera's lens, position or fitting algorithm.
-        for (const horizontal of [-0.81, 0.81])
+        for (const horizontal of [-BOARD_SIZE / 2, BOARD_SIZE / 2])
         {
-            for (const depth of [-0.81, 0.81])
+            for (const depth of [-BOARD_SIZE / 2, BOARD_SIZE / 2])
             {
-                for (const elevation of [1.18, 1.3])
+                for (const elevation of [BOARD_SURFACE_Y - BOARD_THICKNESS, BEAD_TOP_Y])
                 {
                     const point = new Vector3(horizontal, elevation, depth).project(rig.camera);
                     const screenX = (point.x + 1) * width / 2;
                     const screenY = (1 - point.y) * height / 2;
+                    highest = Math.min(highest, screenY);
+                    lowest = Math.max(lowest, screenY);
                     assert.ok(screenX >= 48 && screenX <= width - 300,
                         `${width} × ${height}: corner clears the left margin and color panel`);
                     assert.ok(screenY >= 120 && screenY <= height - 180,
@@ -88,6 +95,48 @@ test('the full physical board fits between the desktop HUD and the color panel',
                 }
             }
         }
+        assert.ok(lowest - highest >= (height - 300) * 0.8,
+            `${width} × ${height}: full-board view uses the available craft area`);
+    }
+});
+
+test('close-up enlarges fixed-size pegs and clamps panning to the actual small board', () =>
+{
+    const rig = new WorkshopCamera();
+    rig.resize(1280, 720);
+    const application = enterBoard(rig);
+    const model = application.getReadModel();
+    const firstPeg = new Vector3(0, BEAD_TOP_Y, 0);
+    const nextPeg = new Vector3(BEAD_PITCH, BEAD_TOP_Y, 0);
+    const fullSpacing = projectedDistance(firstPeg, nextPeg, rig);
+
+    for (let notch = 0; notch < 20; notch += 1)
+    {
+        rig.wheel(-120, model);
+    }
+    advanceCamera(rig, application, 2);
+    assert.equal(rig.zoom, 1);
+    assert.ok(projectedDistance(firstPeg, nextPeg, rig) > fullSpacing * 2,
+        'camera movement makes real-size pegs legible without rescaling the board');
+    assert.ok(rig.camera.position.y - BOARD_SURFACE_Y < BOARD_SIZE,
+        'detail camera approaches the smaller physical board');
+
+    for (const sign of [-1, 1])
+    {
+        rig.pan(sign * 100000, sign * 100000);
+        rig.update(0, model, AVATAR_POSITION);
+        const direction = rig.camera.getWorldDirection(new Vector3());
+        const distance = (BOARD_SURFACE_Y - rig.camera.position.y) / direction.y;
+        const focus = rig.camera.position.clone().addScaledVector(direction, distance);
+        assert.ok(Math.abs(focus.x) <= BOARD_SIZE / 2 && Math.abs(focus.z) <= BOARD_SIZE / 2,
+            'extreme drag cannot put the focus outside the real board footprint');
+        assert.ok(Math.abs(focus.x) > BEAD_PITCH && Math.abs(focus.z) > BEAD_PITCH,
+            'both close-up pan directions remain available');
+        const clampedPosition = rig.camera.position.clone();
+        rig.pan(sign * 100000, sign * 100000);
+        rig.update(0, model, AVATAR_POSITION);
+        assert.ok(rig.camera.position.distanceTo(clampedPosition) < 0.000001,
+            'dragging farther at an edge remains clamped');
     }
 });
 
@@ -142,4 +191,9 @@ function advanceCamera(rig: WorkshopCamera, application: WorkshopApplication, se
     {
         rig.update(1 / 60, application.getReadModel(), AVATAR_POSITION);
     }
+}
+
+function projectedDistance(first: Vector3, second: Vector3, rig: WorkshopCamera): number
+{
+    return first.clone().project(rig.camera).distanceTo(second.clone().project(rig.camera));
 }

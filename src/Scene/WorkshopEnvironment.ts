@@ -22,6 +22,8 @@ import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 
 import type { PainterlyRole } from '../Rendering/PainterlyMaterials';
 import { REFERENCE_PAINTERLY_PALETTE } from '../Rendering/ReferenceProfile';
+import { BOARD_SURFACE_Y } from '../Rendering/BeadDimensions';
+import type { BeadModels } from '../Rendering/BeadModels';
 
 export interface WorkshopMaterialFactory
 {
@@ -69,7 +71,7 @@ const REFERENCE_SURFACE_ROLES: Readonly<Record<string, PainterlyRole>> = {
 };
 
 /** Builds an authored miniature craft shop; gameplay and camera ownership stay outside. */
-export function createWorkshopEnvironment(materials: WorkshopMaterialFactory): WorkshopEnvironment
+export function createWorkshopEnvironment(materials: WorkshopMaterialFactory, beadModels: BeadModels): WorkshopEnvironment
 {
     const root = new Group();
     root.name = 'LittleColourWorkshop';
@@ -451,7 +453,7 @@ export function createWorkshopEnvironment(materials: WorkshopMaterialFactory): W
     plant('GalleryLittlePlant', [3.38, 2.61, -3.16], 0.50);
 
     const accessories = assembly('WorkbenchToolsAndBeadTrays');
-    // Both sides stay outside the 1.65 m square gameplay area.
+    // Sorting tools surround the fixed-size physical pegboard.
     box(accessories, 'SortingTrayBase', [0.46, 0.045, 1.37], [-1.36, 1.172, -0.01], REFERENCE_PAINTERLY_PALETTE.cream, 'ceramic', 0.035);
     for (const x of [-1.58, -1.14])
     {
@@ -464,7 +466,7 @@ export function createWorkshopEnvironment(materials: WorkshopMaterialFactory): W
     }
     for (let compartment = 0; compartment < 4; compartment += 1)
     {
-        scatterBeads(accessories, [-1.36, 1.222, -0.51 + compartment * 0.335], PALETTE[compartment],
+        scatterBeads(accessories, [-1.36, 1.1945, -0.51 + compartment * 0.335], PALETTE[compartment],
             10, 0.14, 0.094, compartment * 2.7);
     }
     for (let cup = 0; cup < 2; cup += 1)
@@ -473,7 +475,7 @@ export function createWorkshopEnvironment(materials: WorkshopMaterialFactory): W
         cylinder(accessories, 'GlazedBeadBowl', 0.23, 0.12, [1.34, 1.21, z], cup === 0 ? REFERENCE_PAINTERLY_PALETTE.accent : REFERENCE_PAINTERLY_PALETTE.fabric, 'ceramic', 0.25);
         cylinder(accessories, 'BowlInnerShadow', 0.217, 0.010, [1.34, 1.275, z], cup === 0 ? REFERENCE_PAINTERLY_PALETTE.accent : REFERENCE_PAINTERLY_PALETTE.fabric, 'ceramic');
         ring(accessories, 'BowlSoftRim', 0.242, 0.022, [1.34, 1.275, z], cup === 0 ? REFERENCE_PAINTERLY_PALETTE.accent : REFERENCE_PAINTERLY_PALETTE.fabric, 'ceramic');
-        scatterBeads(accessories, [1.34, 1.299, z], PALETTE[cup + 4], 18, 0.177, 0.177, cup + 12);
+        scatterBeads(accessories, [1.34, 1.280, z], PALETTE[cup + 4], 18, 0.177, 0.177, cup + 12);
     }
     for (const x of [-0.16, -0.10])
     {
@@ -496,19 +498,27 @@ export function createWorkshopEnvironment(materials: WorkshopMaterialFactory): W
         phase: number
     ): void
     {
-        const geometry = cached('decorativeBead', () => new TorusGeometry(0.020, 0.010, 6, 12));
+        const geometry = cached('decorativeBead', () => beadModels.raw.clone());
         const instances = new InstancedMesh(geometry, material(color, 'bead'), count);
         instances.name = 'SortedLooseBeads';
         instances.castShadow = false;
         instances.receiveShadow = true;
         const transform = new Object3D();
+        const vertexPosition = new Vector3();
+        const positions = geometry.getAttribute('position');
         for (let index = 0; index < count; index += 1)
         {
             const distance = Math.sqrt((index + 0.5) / count);
             const angle = index * 2.399 + phase;
+            transform.rotation.set(Math.sin(index * 7) * 0.22, angle, Math.cos(index * 3) * 0.18);
+            let lowestVertex = Number.POSITIVE_INFINITY;
+            for (let vertex = 0; vertex < positions.count; vertex += 1)
+            {
+                vertexPosition.fromBufferAttribute(positions, vertex).applyQuaternion(transform.quaternion);
+                lowestVertex = Math.min(lowestVertex, vertexPosition.y);
+            }
             transform.position.set(center[0] + Math.cos(angle) * radiusX * distance,
-                center[1] + (index % 3) * 0.007, center[2] + Math.sin(angle) * radiusZ * distance);
-            transform.rotation.set(Math.PI / 2 + Math.sin(index * 7) * 0.22, 0, angle);
+                center[1] - lowestVertex, center[2] + Math.sin(angle) * radiusZ * distance);
             transform.updateMatrix();
             instances.setMatrixAt(index, transform.matrix);
         }
@@ -619,7 +629,7 @@ export function createWorkshopEnvironment(materials: WorkshopMaterialFactory): W
         workbench,
         seatPosition: new Vector3(0, -0.03, 1.65),
         standPosition: new Vector3(0, 0, 1.8),
-        boardPosition: new Vector3(0, 1.18, 0),
+        boardPosition: new Vector3(0, BOARD_SURFACE_Y, 0),
         displayPosition: new Vector3(2.68, 1.43, -2.95),
         update(time: number, isWalking: boolean, isSeated: boolean): void
         {

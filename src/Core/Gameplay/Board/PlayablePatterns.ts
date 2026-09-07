@@ -7,6 +7,48 @@ import type {
     StarterPatternCatalogEntry
 } from './StarterPatterns';
 
+// Original 29-peg charm: 0 is open background, 1 fruit, 2 highlight, 3 leaves, 4 seeds.
+// The complete nonzero mask is one four-connected piece, including the stem.
+const STRAWBERRY_CHARM_ROWS: readonly string[] = [
+    '00000000000000000000000000000',
+    '00000000000000000000000000000',
+    '00000000000000300000000000000',
+    '00000000000003330000000000000',
+    '00000033300003330000333000000',
+    '00000033333033333033333000000',
+    '00000003333333333333330000000',
+    '00000011333333333333311000000',
+    '00000111133313331333111100000',
+    '00001111113111311131111110000',
+    '00001122111111111111111110000',
+    '00001221114111111141111110000',
+    '00001221114111111141111110000',
+    '00001221111111111111111110000',
+    '00000122411111411111141100000',
+    '00000122411111411111141100000',
+    '00000012111111111111111000000',
+    '00000011114111111141111000000',
+    '00000001114111111141110000000',
+    '00000000111111111111100000000',
+    '00000000011114111111000000000',
+    '00000000001114114110000000000',
+    '00000000000111114100000000000',
+    '00000000000011111000000000000',
+    '00000000000001110000000000000',
+    '00000000000000100000000000000',
+    '00000000000000000000000000000',
+    '00000000000000000000000000000',
+    '00000000000000000000000000000'
+];
+
+const STRAWBERRY_CHARM_TARGETS = Object.freeze(parseRows(STRAWBERRY_CHARM_ROWS));
+const STRAWBERRY_CHARM_PALETTE: readonly NumberedBeadPaletteEntry[] = Object.freeze([
+    Object.freeze({ colorId: 'red', number: 1 }),
+    Object.freeze({ colorId: 'pink', number: 2 }),
+    Object.freeze({ colorId: 'green', number: 3 }),
+    Object.freeze({ colorId: 'cream', number: 4 })
+]);
+
 const PIXEL_HEART_ROWS: readonly string[] = [
     '0000000000000000',
     '0000000000000000',
@@ -52,9 +94,33 @@ export const PIXEL_HEART_PATTERN: StarterPatternCatalogEntry = Object.freeze({
     width: 16
 });
 
-/** Runtime catalog adds the independent example without changing the original twelve. */
+/** A clearer original cutout; its independent ID preserves every existing draft signature. */
+export const STRAWBERRY_CHARM_PATTERN: StarterPatternCatalogEntry = Object.freeze({
+    colorCount: 4,
+    difficulty: 'beginner',
+    difficultyDescription: '入门 · 清楚叶冠、奶油籽与留空背景',
+    estimatedMinutes: 10,
+    height: 29,
+    isAvailable: true,
+    name: '草莓吊饰',
+    palette: STRAWBERRY_CHARM_PALETTE,
+    patternId: 'atelier-strawberry-charm-29-v1',
+    targetNumbers: STRAWBERRY_CHARM_TARGETS,
+    thumbnail: Object.freeze({
+        colorNumbers: STRAWBERRY_CHARM_TARGETS,
+        height: 29,
+        width: 29
+    }),
+    width: 29
+});
+
+/** Applies only before an existing local save restores its selected pattern. */
+export const DEFAULT_PLAYABLE_PATTERN: StarterPatternCatalogEntry = STRAWBERRY_CHARM_PATTERN;
+
+/** New content precedes the thirteen immutable patterns used by existing local saves. */
 export const PLAYABLE_PATTERN_CATALOG: readonly StarterPatternCatalogEntry[] =
     Object.freeze([
+        STRAWBERRY_CHARM_PATTERN,
         PIXEL_HEART_PATTERN,
         ...STARTER_PATTERN_CATALOG
     ]);

@@ -27,6 +27,9 @@ try
 {
     await page.goto(process.env.ATELIER_URL ?? 'http://127.0.0.1:5173/');
     await page.waitForFunction(() => window.beadsAtelier?.metrics().ready === true);
+    // Preserve the original 16-grid interaction regression fixture; the new default
+    // and real-size Blender kit have their own 29-grid acceptance in beads-selfcheck.
+    await page.evaluate(() => window.beadsAtelier.dispatch({ type: 'selectPattern', patternId: 'pixel-heart' }));
     await page.waitForTimeout(650);
     const stillFrame = await page.locator('.world-canvas').screenshot();
     await page.waitForTimeout(700);

@@ -1,6 +1,6 @@
 import { NumberedBeadPaintingSession } from '../Core/Gameplay/Board/NumberedBeadPaintingSession';
 import type { NumberedBeadBoardReadModel, NumberedBeadPattern } from '../Core/Gameplay/Board/NumberedBeadBoard';
-import { PIXEL_HEART_PATTERN, PLAYABLE_PATTERN_CATALOG } from '../Core/Gameplay/Board/PlayablePatterns';
+import { DEFAULT_PLAYABLE_PATTERN, PLAYABLE_PATTERN_CATALOG } from '../Core/Gameplay/Board/PlayablePatterns';
 import { completeWorkshopTransition, createWorkshopInteractionState, tryBeginWorkshopTransition } from '../Core/Gameplay/Workshop/WorkshopInteractionFlow';
 import type { WorkshopActivityMode, WorkshopInteractionState, WorkshopTransitionKind } from '../Core/Gameplay/Workshop/WorkshopInteractionFlow';
 import { WORKSHOP_CAMERA_TRANSITION_DURATIONS_SECONDS } from '../Core/Gameplay/Workshop/WorkshopCameraTransition';
@@ -81,7 +81,7 @@ interface Draft
 export class WorkshopApplication
 {
     private readonly drafts = new Map<string, Draft>();
-    private activePatternId = PIXEL_HEART_PATTERN.patternId;
+    private activePatternId = DEFAULT_PLAYABLE_PATTERN.patternId;
     private interaction: WorkshopInteractionState = createWorkshopInteractionState();
     private transitionElapsed = 0;
     private tool: 'place' | 'erase' = 'place';
@@ -95,7 +95,7 @@ export class WorkshopApplication
 
     public constructor()
     {
-        this.drafts.set(this.activePatternId, createDraft(PIXEL_HEART_PATTERN));
+        this.drafts.set(this.activePatternId, createDraft(DEFAULT_PLAYABLE_PATTERN));
     }
 
     /** Dispatches one value command; rejected commands leave the existing state intact. */

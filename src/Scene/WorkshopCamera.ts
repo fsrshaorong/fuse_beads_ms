@@ -10,6 +10,9 @@ import type {
     WorkshopTransitionKind
 } from '../Core/Gameplay/Workshop/WorkshopInteractionFlow';
 import type { WorkshopReadModel } from '../App/WorkshopApplication';
+import {
+    BEAD_PITCH, BEAD_TOP_Y, BOARD_SIZE, BOARD_SURFACE_Y, BOARD_THICKNESS
+} from '../Rendering/BeadDimensions';
 
 interface CameraPose
 {
@@ -21,10 +24,12 @@ interface CameraPose
     detail: number;
 }
 
-const BOARD_HALF_EXTENT = 0.81;
-const BOARD_CENTER = new Vector3(0, 1.18, 0);
+const BOARD_HALF_EXTENT = BOARD_SIZE * 0.5;
+const BOARD_CENTER = new Vector3(0, BOARD_SURFACE_Y, 0);
 const UP = new Vector3(0, 1, 0);
-const FULL_DIRECTION = new Vector3(0, 2.72, 0.45).normalize();
+const FULL_DIRECTION = new Vector3(0, 1, 0.2).normalize();
+// About thirteen peg intervals above the board keeps individual tube walls legible.
+const CLOSE_OFFSET = new Vector3(0, BEAD_PITCH * 13.5, BEAD_PITCH * 6);
 const FULL_BOARD_FIELD_OF_VIEW = 42;
 const WORLD_DISTANCE = Math.sqrt(7 * 7 + 5.8 * 5.8 + 9 * 9);
 
@@ -52,7 +57,7 @@ export class WorkshopCamera
     private transitionProgress = 0;
     private viewportWidth = 1920;
     private viewportHeight = 1080;
-    private fullBoardDistance = 2.8;
+    private fullBoardDistance = BOARD_SIZE * 2;
     private worldYaw = Math.atan2(7, 9);
     private worldElevation = Math.asin(5.8 / WORLD_DISTANCE);
     // Keep the raised room clear of the welcome copy and footer at desktop sizes.
@@ -253,7 +258,7 @@ export class WorkshopCamera
         }
         else if (mode === 'tabletop')
         {
-            this.target.set(0, 1.1, 0);
+            this.target.copy(BOARD_CENTER);
             output.position.set(0, 3.4, 3.9);
         }
         else
@@ -262,7 +267,7 @@ export class WorkshopCamera
             output.verticalShift = 20 / this.viewportHeight;
             this.target.copy(BOARD_CENTER).add(this.projected.set(this.panX, 0, this.panZ));
             output.position.copy(FULL_DIRECTION).multiplyScalar(this.fullBoardDistance);
-            output.position.lerp(this.projected.set(0, 0.97, 0.1), zoom).add(this.target);
+            output.position.lerp(CLOSE_OFFSET, zoom).add(this.target);
             output.detail = 0.78 + zoom * 0.22;
         }
         this.orientation.lookAt(output.position, this.target, UP);
@@ -326,7 +331,7 @@ export class WorkshopCamera
         const camera = this.projectionCamera;
         camera.fov = FULL_BOARD_FIELD_OF_VIEW;
         this.setProjection(camera, 0.07, 20 / this.viewportHeight);
-        let distance = 2.72;
+        let distance = BOARD_HALF_EXTENT / Math.tan(MathUtils.degToRad(FULL_BOARD_FIELD_OF_VIEW * 0.5));
         for (let attempt = 0; attempt < 120; attempt += 1)
         {
             camera.position.copy(FULL_DIRECTION).multiplyScalar(distance).add(BOARD_CENTER);
@@ -351,7 +356,7 @@ export class WorkshopCamera
         {
             for (const z of [-BOARD_HALF_EXTENT, BOARD_HALF_EXTENT])
             {
-                for (const y of [1.18, 1.3])
+                for (const y of [BOARD_SURFACE_Y - BOARD_THICKNESS, BEAD_TOP_Y])
                 {
                     this.projected.set(x, y, z).project(camera);
                     const screenX = (this.projected.x + 1) * this.viewportWidth * 0.5;
@@ -368,7 +373,8 @@ export class WorkshopCamera
 
     private boardViewHeight(): number
     {
-        const distance = MathUtils.lerp(this.fullBoardDistance, Math.hypot(0.97, 0.1), this.zoom);
+        const distance = this.projected.copy(FULL_DIRECTION)
+            .multiplyScalar(this.fullBoardDistance).lerp(CLOSE_OFFSET, this.zoom).length();
         return 2 * distance * Math.tan(MathUtils.degToRad(FULL_BOARD_FIELD_OF_VIEW * 0.5));
     }
 

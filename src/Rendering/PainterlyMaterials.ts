@@ -86,7 +86,7 @@ const OUTLINE_ROLE_WIDTHS: Readonly<Partial<Record<PainterlyRole, number>>> = {
     fabric: 1.15,
     green: 1,
     blue: 0,
-    bead: 0.75,
+    bead: 0.4,
     board: 1
 };
 
@@ -193,6 +193,7 @@ export class PainterlyMaterials
         const material = new MeshStandardMaterial({
             color,
             map: this.whiteTexture,
+            vertexColors: role === 'bead',
             roughness: settings.roughness,
             metalness: 0
         });

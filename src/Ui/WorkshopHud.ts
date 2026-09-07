@@ -50,7 +50,7 @@ export class WorkshopHud
                 <section class="welcome"><span class="eyebrow">留一点时间，给喜欢的小事</span><h1>一颗一颗，<br>拼出好心情。</h1><p>窗边有光，桌上有颜色。<br>今天，做一件只属于你的小小收藏。</p><span class="handwritten">make something little.</span></section>
                 <aside class="craft-card" aria-label="当前作品">
                     <div class="card-heading"><span class="eyebrow">TODAY’S LITTLE PROJECT</span><button id="pattern-button" class="text-button">换个图案 ${ARROW}</button></div>
-                    <div class="project-row"><canvas id="pattern-preview" width="128" height="128" aria-label="目标图案预览"></canvas><div><h2 id="pattern-title"></h2><p id="pattern-meta"></p><span id="stage-label" class="stage-label">慢慢填满喜欢的颜色</span></div></div>
+                    <div class="project-row"><canvas id="pattern-preview" width="128" height="128" aria-label="目标图案预览"></canvas><div><h2 id="pattern-title"></h2><p id="pattern-meta"></p><p>5 mm 拼豆 · 14.5 cm 钉板</p><span id="stage-label" class="stage-label">慢慢填满喜欢的颜色</span></div></div>
                     <div class="progress-caption"><span id="progress-caption">制作进度</span><span id="progress-number">0%</span></div>
                     <div class="progress-track"><span id="progress-fill"></span></div>
                     <div class="palette-heading"><span>挑一颗颜色</span><small>数字键快速切换</small></div>
