@@ -27,7 +27,7 @@ export async function startWorkshopServer(options: ServerOptions = {})
 {
     const store = options.store ?? new SqliteWorkshopStore(options.databasePath ?? 'data/multiplayer.sqlite');
     const service = new RoomService(store, options.now);
-    const origins = new Set(options.allowedOrigins ?? ['http://127.0.0.1:5173', 'http://localhost:5173', 'http://127.0.0.1:4173']);
+    const origins = new Set(options.allowedOrigins ?? ['http://127.0.0.1:5173', 'http://localhost:5173', 'http://127.0.0.1:4173', 'atelier://game']);
     const reportError = options.onError ?? ((error: unknown) => console.error('Multiplayer server error:', error));
     const http = createServer((request, response) =>
     {

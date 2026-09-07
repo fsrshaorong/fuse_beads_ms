@@ -10,6 +10,12 @@
         "prepare:assets": "node scripts/prepare-assets.mjs",
         "dev": "npm run prepare:assets && vite --host 127.0.0.1 --port 5173 --strictPort",
         "build": "npm run prepare:assets && tsc --noEmit && vite build",
+        "desktop:build": "npm run build && tsx scripts/build-desktop.ts",
+        "desktop:start": "electron .desktop",
+        "desktop:package": "npm run desktop:build && tsx scripts/package-desktop.ts",
+        "desktop:steam": "electron .desktop --steam-app-id=480 --steam-overlay",
+        "selfcheck:desktop": "tsx scripts/desktop-selfcheck.ts",
+        "selfcheck:desktop-steam": "tsx scripts/desktop-steam-selfcheck.ts",
         "preview": "vite preview --host 127.0.0.1 --port 4173 --strictPort",
         "typecheck": "tsc --noEmit",
         "test": "tsx --test Tests/*.test.ts",
@@ -28,13 +34,17 @@
     "dependencies": {
         "socket.io": "4.8.3",
         "socket.io-client": "4.8.3",
+        "steamworks.js": "0.4.0",
         "three": "0.185.0",
         "zod": "4.5.4"
     },
     "devDependencies": {
+        "@electron/packager": "20.3.0",
         "@playwright/test": "1.63.0",
         "@types/node": "24.10.1",
         "@types/three": "0.185.0",
+        "electron": "44.2.0",
+        "esbuild": "0.28.2",
         "tsx": "4.23.13",
         "typescript": "5.9.3",
         "vite": "7.3.6"

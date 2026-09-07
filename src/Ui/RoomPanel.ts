@@ -65,6 +65,11 @@ export class RoomPanel
         this.bind('guest-room', async () =>
         {
             const url = new URL(this.value('room-invite'));
+            if (window.atelierDesktop !== undefined)
+            {
+                await window.atelierDesktop.openGuest(this.online!.room.roomId);
+                return;
+            }
             url.searchParams.set('guest', 'new');
             window.open(url, '_blank', 'noopener');
         });
@@ -110,7 +115,7 @@ export class RoomPanel
         const signature = JSON.stringify([room.players.map((p) => [p.playerId, p.nickname, p.connected, p.seat]), room.hostId, room.proposal, online.client.ready]);
         if (signature === this.signature) { return; }
         this.signature = signature;
-        const url = new URL(location.href);
+        const url = new URL(window.atelierDesktop === undefined ? location.href : 'http://127.0.0.1:5173/');
         url.search = '';
         url.searchParams.set('room', room.roomId);
         this.dialog.querySelector<HTMLInputElement>('#room-invite')!.value = url.href;

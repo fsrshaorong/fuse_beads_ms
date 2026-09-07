@@ -8,6 +8,7 @@ import { MultiplayerClient } from './Networking/MultiplayerClient';
 import { RoomPanel } from './Ui/RoomPanel';
 import { PartnerView } from './Scene/PartnerView';
 import { WORKSHOP_LAYOUT } from './Core/Multiplayer/WorkshopLayout';
+import { RuntimeStorage } from './Platform/RuntimeStorage';
 import type { WorkshopCommand, WorkshopReadModel } from './App/WorkshopApplication';
 import { BeadBoardView } from './Rendering/BeadBoardView';
 import { BEAD_TOP_Y } from './Rendering/BeadDimensions';
@@ -34,6 +35,10 @@ let application: WorkshopApplication | OnlineWorkshopApplication = localApplicat
 let online: OnlineWorkshopApplication | null = null;
 const ONLINE_KEY = 'fuse-beads.online-session.v1';
 const OUTBOX_KEY = 'fuse-beads.online-outbox.v1';
+const desktop = window.atelierDesktop;
+const desktopInfo = await desktop?.info();
+const sessionStore = new RuntimeStorage(desktop);
+await sessionStore.initialize();
 const materials = new PainterlyMaterials(`${import.meta.env.BASE_URL}textures/painterly/`);
 const cameraRig = new WorkshopCamera();
 const scene = new Scene();
@@ -77,6 +82,8 @@ const roomPanel = new RoomPanel(root, {
     interrupt: interruptInput,
     notify: (message) => hud.notify(message)
 });
+sessionStore.onError = () => hud.notify('联机身份暂未写入文件，请保持窗口开启。');
+if (!sessionStore.readable) { hud.notify('联机身份暂时无法读取，原文件已保留，仍可继续单机制作。'); }
 
 try
 {
@@ -103,13 +110,20 @@ const boardView = new BeadBoardView(materials, beadModels);
 boardView.root.position.copy(environment.boardPosition);
 const finishingView = new FinishingView(materials, environment.displayPosition, beadModels);
 scene.add(environment.root, boardView.root, finishingView.root, partners.root);
-restoreSave();
+await restoreSave();
 const initialAvatar = application.getReadModel().avatar;
 environment.avatar.position.set(initialAvatar.x, 0, initialAvatar.z);
 environment.avatar.rotation.y = initialAvatar.yaw;
 environment.update(0, false, false);
 resize();
 bindInput();
+const removeCloseHandler = desktop?.onBeforeClose(async () =>
+{
+    interruptInput();
+    window.clearTimeout(saveTimer);
+    if (!await save()) { throw new Error('save-failed'); }
+    await sessionStore.flush();
+});
 
 materials.ready.then(() =>
 {
@@ -642,31 +656,35 @@ function bindInput(): void
     window.addEventListener('keyup', (event) => keys.delete(event.code), options);
 }
 
-function save(): void
+async function save(): Promise<boolean>
 {
-    if (online !== null) { return; }
+    if (online !== null) { return true; }
     if (!storageWritable)
     {
-        return;
+        return true;
     }
 
     try
     {
-        localStorage.setItem(SAVE_KEY, localApplication.exportSave());
+        const serialized = localApplication.exportSave();
+        if (desktop === undefined) { localStorage.setItem(SAVE_KEY, serialized); }
+        else { await desktop.writeSave(serialized); }
         hud.setSaveStatus('已保存到这台设备');
+        return true;
     }
     catch (error)
     {
         hud.setSaveStatus('暂未保存，请保持页面开启');
         console.warn('[Workshop] Local save write failed.', error);
+        return false;
     }
 }
 
-function restoreSave(): void
+async function restoreSave(): Promise<void>
 {
     try
     {
-        const serialized = localStorage.getItem(SAVE_KEY);
+        const serialized = desktop === undefined ? localStorage.getItem(SAVE_KEY) : await desktop.readSave();
 
         if (serialized !== null)
         {
@@ -693,19 +711,19 @@ async function connectRoom(nickname: string, target: { name: string } | { roomId
     if (online !== null) { throw new Error('请先离开当前小店。'); }
     if (!nickname.trim()) { throw new Error('先给自己取个名字吧。'); }
     interruptInput();
-    save();
+    if (!await save()) { throw new Error('单机作品尚未保存，请保存成功后再加入小店。'); }
     let token: string | undefined;
     let savedCommands: unknown[] = [];
     let savedPlayer: string | undefined;
     try
     {
-        token = JSON.parse(sessionStorage.getItem(ONLINE_KEY) ?? '{}').token;
-        const outbox = JSON.parse(sessionStorage.getItem(OUTBOX_KEY) ?? '{}');
+        token = JSON.parse(sessionStore.getItem(ONLINE_KEY) ?? '{}').token;
+        const outbox = JSON.parse(sessionStore.getItem(OUTBOX_KEY) ?? '{}');
         savedCommands = Array.isArray(outbox.commands) ? outbox.commands : [];
         savedPlayer = outbox.playerId;
     }
     catch { /* Session storage may be unavailable; normal single-player saves remain untouched. */ }
-    const url = import.meta.env.VITE_MULTIPLAYER_URL || location.origin;
+    const url = desktopInfo?.multiplayerUrl || import.meta.env.VITE_MULTIPLAYER_URL || location.origin;
     const client = new MultiplayerClient(url, token === undefined ? { nickname } : { token });
     try
     {
@@ -719,12 +737,12 @@ async function connectRoom(nickname: string, target: { name: string } | { roomId
         instance.onNotice = (message) => hud.notify(message);
         instance.persist = (commands) =>
         {
-            try { sessionStorage.setItem(OUTBOX_KEY, JSON.stringify({ playerId: session.playerId, commands })); }
+            try { sessionStore.setItem(OUTBOX_KEY, JSON.stringify({ playerId: session.playerId, commands })); }
             catch { hud.notify('浏览器暂时无法保存待确认操作，请保持页面开启。'); }
         };
         client.onError = (error) => hud.notify(error.message === 'session-replaced'
             ? '同一身份已在另一页面连接，可用“新玩家打开测试”加入。' : '正在尝试恢复联机连接…');
-        try { sessionStorage.setItem(ONLINE_KEY, JSON.stringify({ token: session.token, nickname: session.nickname, roomId: snapshot.roomId })); }
+        try { sessionStore.setItem(ONLINE_KEY, JSON.stringify({ token: session.token, nickname: session.nickname, roomId: snapshot.roomId })); }
         catch { hud.notify('这次联机身份暂存于页面中，刷新后可能需要重新加入。'); }
         resetViewCache();
         cameraRig.initializeWorldView(environment.avatar.position);
@@ -749,9 +767,9 @@ async function leaveRoom(): Promise<void>
     application = localApplication;
     try
     {
-        const saved = JSON.parse(sessionStorage.getItem(ONLINE_KEY) ?? '{}');
-        sessionStorage.setItem(ONLINE_KEY, JSON.stringify({ token: saved.token, nickname: saved.nickname }));
-        sessionStorage.removeItem(OUTBOX_KEY);
+        const saved = JSON.parse(sessionStore.getItem(ONLINE_KEY) ?? '{}');
+        sessionStore.setItem(ONLINE_KEY, JSON.stringify({ token: saved.token, nickname: saved.nickname }));
+        sessionStore.removeItem(OUTBOX_KEY);
     }
     catch { /* Optional session persistence. */ }
     history.replaceState(null, '', location.pathname);
@@ -774,12 +792,12 @@ async function resumeOnline(): Promise<void>
     {
         if (query.get('guest') === 'new')
         {
-            sessionStorage.removeItem(ONLINE_KEY);
-            sessionStorage.removeItem(OUTBOX_KEY);
+            sessionStore.removeItem(ONLINE_KEY);
+            sessionStore.removeItem(OUTBOX_KEY);
             query.delete('guest');
             history.replaceState(null, '', `${location.pathname}?${query}`);
         }
-        const saved = JSON.parse(sessionStorage.getItem(ONLINE_KEY) ?? '{}');
+        const saved = JSON.parse(sessionStore.getItem(ONLINE_KEY) ?? '{}');
         if (saved.token && (invited === null || invited === saved.roomId) && saved.roomId)
         {
             await connectRoom(saved.nickname ?? '手作朋友', { roomId: saved.roomId });
@@ -798,6 +816,7 @@ if (import.meta.hot)
         cancelAnimationFrame(frameRequest);
         window.clearTimeout(saveTimer);
         inputLifetime.abort();
+        removeCloseHandler?.();
         hud.dispose();
         roomPanel.dispose();
         online?.dispose();

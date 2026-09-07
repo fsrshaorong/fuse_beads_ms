@@ -28,6 +28,17 @@ npm run preview
 
 生产预览为 <http://127.0.0.1:4173/>。`dist/` 可由静态 Web 服务承载；不支持直接双击 HTML。开发服务只监听本机。
 
+## Windows 客户端试玩
+
+已增加 Electron 客户端，复用网页的玩法、模型和渲染，支持单机离线启动、独立文件存档、F11 全屏及双客户端联机测试。
+
+```powershell
+npm run desktop:package
+& '.\release\Fuse Beads MS-win32-x64\FuseBeadsMS.exe'
+```
+
+请保留完整程序目录。联机仍需启动本机后端；客户端存档位于 `%APPDATA%\FuseBeadsMS\profiles\local\`，不会覆盖浏览器存档。Steam 测试 SDK 已接通，默认关闭；正式 Steam 发布、云存档、成就及其他操作系统尚未完成。构建、验证和接入边界见 [客户端说明](docs/DESKTOP.md)。
+
 ## 玩法
 
 - 工作室：WASD 相对当前摄像机走动（W 朝镜头水平朝向，A/D 相对画面左右），人物朝实际行走方向转身；左键或中键拖动观察，滚轮调整距离。右键不参与视角控制，避免浏览器鼠标手势冲突。走近工作台按 E 坐下。
