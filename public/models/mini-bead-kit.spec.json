@@ -1,0 +1,181 @@
+{
+  "schemaVersion": 1,
+  "generator": "scripts/blender/generate_mini_bead_kit.py",
+  "blenderVersion": "5.2.1 LTS",
+  "coordinateUnits": "metres; glTF Y-up; bottom Y=0; center X/Z=0; identity node transforms",
+  "nominalPitchMm": 2.7,
+  "referenceBoard": {
+    "sizeMm": 145,
+    "columns": 52,
+    "rows": 52,
+    "source": "https://www.artkalfusebeads.com/products/artkal-clear-large-square-pegboard-for-mini-2-6mm-beads-bcp01"
+  },
+  "rawDiameterHeightSource": "https://perler.com/products/2-000-mini-perler-beads-black",
+  "verifiedManufacturerDimensionsMm": {
+    "brand": "Perler Mini",
+    "outerDiameter": 2.61,
+    "height": 2.8
+  },
+  "fusedBoreProfileMm": {
+    "lowerSocketDiameter": 0.8,
+    "lowerSocketTopHeight": 1.82,
+    "upperThroatDiameter": 0.35,
+    "upperThroatHeight": 1.93,
+    "mouthDiameter": 0.49,
+    "totalHeight": 2.0
+  },
+  "assumptions": [
+    "Raw bore 1.0 mm and mouth bevel 0.07 mm are art estimates, not published manufacturer dimensions.",
+    "Pitch 2.7 mm is an art estimate. Artkal publishes a 145 mm board and 52x52 pegs, not a numeric pitch.",
+    "Perler bead dimensions and Artkal board layout are separate brand references, not a universal manufacturing specification.",
+    "Fused height 2.0 mm, upper throat 0.35 mm, upper square 2.7 mm and corner radius 0.22 mm are visual estimates.",
+    "The fused lower socket is 0.8 mm wide through height 1.82 mm, above the 0.7 mm x 1.8 mm tapered pin; only its upper region contracts to the 0.35 mm throat.",
+    "The flat fused model approximates an ironed surface; it is not a thermal, material-flow or volume-conservation simulation.",
+    "COLOR_0 is neutral form shading, not baked directional light or physically solved ambient occlusion.",
+    "The Blender viewport hides FusedMiniBead to avoid overlap. The GLB intentionally contains both identity meshes."
+  ],
+  "shapeShadeLinear": {
+    "top": 1.0,
+    "outerWall": 0.92,
+    "innerWall": [
+      0.65,
+      0.82
+    ]
+  },
+  "models": [
+    {
+      "name": "MiniBead",
+      "dimensionsMmBlenderXYZ": [
+        2.61,
+        2.61,
+        2.8
+      ],
+      "dimensionsMmGltfXYZ": [
+        2.61,
+        2.8,
+        2.61
+      ],
+      "nominalHoleDiameterMm": 1.0,
+      "minimumClearBoreDiameterMm": 0.996195,
+      "mouthBevelMm": 0.07,
+      "roundedSquareCornerMm": null,
+      "radialSegments": 36,
+      "bevelSegments": 2,
+      "profileRows": 12,
+      "sourceVertices": 432,
+      "triangles": 864,
+      "boundaryEdges": 0,
+      "nonManifoldEdges": 0,
+      "normalWindingErrors": 0,
+      "clearAxialHoleRays": 37,
+      "pegFit": {
+        "pegBaseDiameterMm": 0.7,
+        "pegTipDiameterMm": 0.56,
+        "pegHeightMm": 1.8,
+        "actualMeshSectionSamples": 26064,
+        "minimumRadialClearanceMm": 0.150819,
+        "fullWidthAxialClearanceRays": 144,
+        "passed": true
+      },
+      "flatTopAnnulusVertices": 72,
+      "flatTopHeightVariationMm": 0.0,
+      "signedVolumeMm3": 12.684296,
+      "identityTransform": true
+    },
+    {
+      "name": "FusedMiniBead",
+      "dimensionsMmBlenderXYZ": [
+        2.7,
+        2.7,
+        2.0
+      ],
+      "dimensionsMmGltfXYZ": [
+        2.7,
+        2.0,
+        2.7
+      ],
+      "nominalHoleDiameterMm": 0.35,
+      "minimumClearBoreDiameterMm": 0.347006,
+      "mouthBevelMm": 0.07,
+      "roundedSquareCornerMm": 0.22,
+      "radialSegments": 36,
+      "bevelSegments": 2,
+      "profileRows": 13,
+      "sourceVertices": 468,
+      "triangles": 936,
+      "boundaryEdges": 0,
+      "nonManifoldEdges": 0,
+      "normalWindingErrors": 0,
+      "clearAxialHoleRays": 37,
+      "pegFit": {
+        "pegBaseDiameterMm": 0.7,
+        "pegTipDiameterMm": 0.56,
+        "pegHeightMm": 1.8,
+        "actualMeshSectionSamples": 26064,
+        "minimumRadialClearanceMm": 0.0493,
+        "fullWidthAxialClearanceRays": 144,
+        "passed": true
+      },
+      "flatTopAnnulusVertices": 72,
+      "flatTopHeightVariationMm": 0.0,
+      "signedVolumeMm3": 11.510015,
+      "identityTransform": true
+    }
+  ],
+  "glb": {
+    "sha256": "f63171af8b3ad70da4758ec456595b3ce6388e2a527a5f6411e64d53c9810083",
+    "bytes": 53592,
+    "meshes": [
+      {
+        "name": "FusedMiniBead",
+        "attributes": [
+          "POSITION",
+          "NORMAL",
+          "TEXCOORD_0",
+          "COLOR_0"
+        ],
+        "positionMinMetres": [
+          -0.0013500000350177288,
+          0,
+          -0.0013500000350177288
+        ],
+        "positionMaxMetres": [
+          0.0013500000350177288,
+          0.0020000000949949026,
+          0.0013500000350177288
+        ],
+        "exportedVertices": 518,
+        "triangles": 936,
+        "identityTransform": true
+      },
+      {
+        "name": "MiniBead",
+        "attributes": [
+          "POSITION",
+          "NORMAL",
+          "TEXCOORD_0",
+          "COLOR_0"
+        ],
+        "positionMinMetres": [
+          -0.0013050000416114926,
+          0,
+          -0.0013050000416114926
+        ],
+        "positionMaxMetres": [
+          0.0013050000416114926,
+          0.00279999990016222,
+          0.0013050000416114926
+        ],
+        "exportedVertices": 481,
+        "triangles": 864,
+        "identityTransform": true
+      }
+    ]
+  },
+  "previews": [
+    "artifacts/mini-models/01-single-beads.png",
+    "artifacts/mini-models/02-packed-comparison.png",
+    "artifacts/mini-models/03-peg-socket-section.svg"
+  ],
+  "passed": true
+}

@@ -2,8 +2,11 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import { WorkshopApplication } from '../src/App/WorkshopApplication.ts';
+import { NumberedBeadBoard } from '../src/Core/Gameplay/Board/NumberedBeadBoard.ts';
+import { getBeadColor, getBeadColorName } from '../src/Rendering/BeadPalette.ts';
 
 const STRAWBERRY_PATTERN_ID = 'atelier-strawberry-charm-29-v1';
+const MINI_STRAWBERRY_PATTERN_ID = 'atelier-strawberry-mini-50-v1';
 
 test('the world, tabletop and board share one draft while transitions reject drawing', () =>
 {
@@ -182,12 +185,13 @@ test('a rejected redo during a fresh stroke does not silently end that stroke', 
     assert.deepEqual(app.getReadModel().board.cells.slice(51, 53), [0, 0]);
 });
 
-test('new visitors start with a connected strawberry charm whose empty background remains empty', () =>
+test('the original strawberry charm keeps its connected silhouette and empty background', () =>
 {
-    const model = new WorkshopApplication().getReadModel();
+    const app = new WorkshopApplication();
+    app.dispatch({ type: 'selectPattern', patternId: STRAWBERRY_PATTERN_ID });
+    const model = app.getReadModel();
     const pattern = model.pattern;
     assert.equal(pattern.patternId, STRAWBERRY_PATTERN_ID);
-    assert.equal(model.patterns[0].patternId, STRAWBERRY_PATTERN_ID);
     assert.deepEqual([pattern.width, pattern.height], [29, 29]);
     assert.equal(pattern.palette.length, 4);
     assert.equal(pattern.targetNumbers.filter((cell) => cell > 0).length, 320);
@@ -229,13 +233,149 @@ test('a legacy-only save restores the original pattern instead of replacing it w
     legacy.dispatch({ type: 'beginStroke', x: 3, y: 3 });
     legacy.dispatch({ type: 'endStroke' });
     const oldSave = JSON.parse(legacy.exportSave());
-    oldSave.drafts = oldSave.drafts.filter((draft: { patternId: string }) => draft.patternId !== STRAWBERRY_PATTERN_ID);
+    oldSave.drafts = oldSave.drafts.filter((draft: { patternId: string }) => draft.patternId === 'pixel-heart');
     const restored = new WorkshopApplication();
     assert.equal(restored.dispatch({ type: 'restore', serialized: JSON.stringify(oldSave) }).accepted, true);
     assert.equal(restored.getReadModel().pattern.patternId, 'pixel-heart');
     assert.equal(restored.getReadModel().board.cells[51], 2);
     assert.equal(restored.getReadModel().selectedColor, 2);
     assert.equal(JSON.parse(restored.exportSave()).schemaVersion, 1);
+});
+
+test('new visitors receive the detailed 50-grid Mini strawberry with six independent colors', () =>
+{
+    const model = new WorkshopApplication().getReadModel();
+    const pattern = model.pattern;
+    assert.equal(pattern.patternId, MINI_STRAWBERRY_PATTERN_ID);
+    assert.equal(model.patterns[0].patternId, MINI_STRAWBERRY_PATTERN_ID);
+    assert.equal(pattern.name, '莓果小物');
+    assert.deepEqual([pattern.width, pattern.height], [50, 50]);
+    assert.equal(pattern.palette.length, 6);
+    assert.equal(model.board.targetCellCount, 1159);
+    assert.equal(pattern.targetNumbers.filter((value) => value === 0).length, 1341);
+    assert.equal(model.board.cells.every((value) => value === 0), true);
+    assert.deepEqual(pattern.palette.map((entry) => getBeadColor(entry.colorId)),
+        ['#A92F45', '#E75463', '#F78889', '#326A49', '#76A85F', '#F9DE99']);
+    assert.deepEqual(pattern.palette.map((entry) => getBeadColorName(entry.colorId)),
+        ['莓果深红', '草莓红', '果肉粉', '叶脉深绿', '新叶绿', '奶油籽']);
+
+    const occupied = pattern.targetNumbers.flatMap((value, index) => value > 0 ? [index] : []);
+    const xs = occupied.map((index) => index % pattern.width);
+    const ys = occupied.map((index) => Math.floor(index / pattern.width));
+    assert.deepEqual([Math.max(...xs) - Math.min(...xs) + 1, Math.max(...ys) - Math.min(...ys) + 1], [40, 44]);
+    const remaining = new Set(occupied);
+    const queue = [occupied[0]];
+    remaining.delete(queue[0]);
+
+    for (let cursor = 0; cursor < queue.length; cursor += 1)
+    {
+        const x = queue[cursor] % pattern.width;
+        const y = Math.floor(queue[cursor] / pattern.width);
+
+        for (const [nextX, nextY] of [[x - 1, y], [x + 1, y], [x, y - 1], [x, y + 1]])
+        {
+            if (nextX >= 0 && nextX < pattern.width && nextY >= 0 && nextY < pattern.height
+                && remaining.delete(nextY * pattern.width + nextX))
+            {
+                queue.push(nextY * pattern.width + nextX);
+            }
+        }
+    }
+
+    assert.equal(remaining.size, 0, 'all Mini beads belong to one four-connected physical piece');
+});
+
+test('numbered boards support the 52-grid kit boundary and reject dimensions beyond it', () =>
+{
+    const pattern = {
+        patternId: 'test-52-grid-boundary', name: 'Boundary board', width: 52, height: 52,
+        palette: [{ colorId: 'red', number: 1 }], targetNumbers: Array.from({ length: 52 * 52 }, () => 1)
+    };
+    const board = new NumberedBeadBoard(pattern);
+    assert.equal(board.fillCell(51, 51, 1).accepted, true);
+    assert.equal(board.getReadModel().cells[52 * 52 - 1], 1);
+    assert.equal(board.fillCell(52, 51, 1).accepted, false);
+    assert.equal(board.fillCell(51, 52, 1).accepted, false);
+    assert.throws(() => new NumberedBeadBoard({
+        ...pattern, width: 53, targetNumbers: Array.from({ length: 53 * 52 }, () => 1)
+    }), RangeError);
+    assert.throws(() => new NumberedBeadBoard({
+        ...pattern, height: 53, targetNumbers: Array.from({ length: 52 * 53 }, () => 1)
+    }), RangeError);
+});
+
+test('a save containing only the original 29-grid draft restores without injecting the Mini default', () =>
+{
+    const legacy = enterBoard(STRAWBERRY_PATTERN_ID);
+    legacy.dispatch({ type: 'selectColor', colorNumber: 3 });
+    legacy.dispatch({ type: 'beginStroke', x: 14, y: 2 });
+    legacy.dispatch({ type: 'endStroke' });
+    const saved = JSON.parse(legacy.exportSave());
+    saved.drafts = saved.drafts.filter((draft: { patternId: string }) => draft.patternId === STRAWBERRY_PATTERN_ID);
+    const serialized = JSON.stringify(saved);
+    const restored = new WorkshopApplication();
+    assert.equal(restored.getReadModel().pattern.patternId, MINI_STRAWBERRY_PATTERN_ID);
+    assert.equal(restored.dispatch({ type: 'restore', serialized }).accepted, true);
+    assert.equal(restored.getReadModel().pattern.patternId, STRAWBERRY_PATTERN_ID);
+    assert.equal(restored.getReadModel().board.cells[2 * 29 + 14], 3);
+    assert.equal(restored.getReadModel().selectedColor, 3);
+    assert.equal(restored.exportSave(), serialized, 'legacy schema, signatures and drafts round trip unchanged');
+});
+
+test('the 1159-bead Mini cutout completes, restores partial ironing and collects one persistent piece', () =>
+{
+    const app = enterBoard(MINI_STRAWBERRY_PATTERN_ID);
+    const pattern = app.getReadModel().pattern;
+
+    for (let index = 0; index < pattern.targetNumbers.length; index += 1)
+    {
+        const colorNumber = pattern.targetNumbers[index];
+
+        if (colorNumber > 0)
+        {
+            assert.equal(app.dispatch({ type: 'selectColor', colorNumber }).accepted, true);
+            assert.equal(app.dispatch({ type: 'beginStroke', x: index % 50, y: Math.floor(index / 50) }).accepted, true);
+            app.dispatch({ type: 'endStroke' });
+        }
+    }
+
+    assert.equal(app.getReadModel().stage, 'ready');
+    assert.equal(app.getReadModel().board.correctCellCount, 1159);
+    assert.deepEqual(app.getReadModel().board.cells, pattern.targetNumbers);
+    assert.equal(app.dispatch({ type: 'startIroning' }).accepted, true);
+    const first = pattern.targetNumbers.findIndex((value) => value > 0);
+    assert.equal(app.dispatch({ type: 'ironCell', x: first % 50, y: Math.floor(first / 50) }).accepted, true);
+    const restored = new WorkshopApplication();
+    assert.equal(restored.dispatch({ type: 'restore', serialized: app.exportSave() }).accepted, true);
+    assert.equal(restored.getReadModel().stage, 'ironing');
+    assert.equal(restored.getReadModel().ironCoverage.filter(Boolean).length, 1);
+    restored.dispatch({ type: 'sit' });
+    restored.dispatch({ type: 'tick', deltaSeconds: 0.6 });
+    restored.dispatch({ type: 'focus' });
+    restored.dispatch({ type: 'tick', deltaSeconds: 0.4 });
+
+    for (let index = 0; index < pattern.targetNumbers.length; index += 1)
+    {
+        assert.equal(restored.dispatch({ type: 'ironCell', x: index % 50, y: Math.floor(index / 50) }).accepted, true);
+    }
+
+    assert.equal(restored.getReadModel().stage, 'finished');
+    const pieces = restored.getReadModel().finishedArtworks;
+    assert.equal(pieces.length, 1);
+    assert.equal(pieces[0].patternId, MINI_STRAWBERRY_PATTERN_ID);
+    assert.deepEqual([pieces[0].width, pieces[0].height], [50, 50]);
+    assert.deepEqual(pieces[0].cells, pattern.targetNumbers, 'transparent background stays absent in the finished cutout');
+    const finalReload = new WorkshopApplication();
+    assert.equal(finalReload.dispatch({ type: 'restore', serialized: restored.exportSave() }).accepted, true);
+    assert.equal(finalReload.getReadModel().stage, 'finished');
+    assert.deepEqual(finalReload.getReadModel().finishedArtworks, pieces);
+    assert.equal(finalReload.dispatch({ type: 'ironCell', x: first % 50, y: Math.floor(first / 50) }).accepted, true);
+    assert.equal(finalReload.getReadModel().finishedArtworks.length, 1);
+    finalReload.dispatch({ type: 'selectPattern', patternId: STRAWBERRY_PATTERN_ID });
+    finalReload.dispatch({ type: 'selectPattern', patternId: MINI_STRAWBERRY_PATTERN_ID });
+    assert.equal(finalReload.getReadModel().stage, 'finished');
+    assert.deepEqual(finalReload.getReadModel().board.cells, pattern.targetNumbers);
+    assert.deepEqual(finalReload.getReadModel().finishedArtworks, pieces);
 });
 
 test('the strawberry draft, legacy draft and finished cutout survive collection and save round trips', () =>

@@ -1,5 +1,6 @@
 import type { WorkshopCommand, WorkshopReadModel } from '../App/WorkshopApplication';
 import { getBeadColor, getBeadColorName } from '../Rendering/BeadPalette';
+import { getBeadDimensions } from '../Rendering/BeadDimensions';
 import { DEFAULT_PAINTERLY_PROFILE } from '../Rendering/PainterlyMaterials';
 import type { PainterlyProfile } from '../Rendering/PainterlyMaterials';
 import { DEFAULT_PAINTERLY_OUTLINE_PROFILE } from '../Rendering/PainterlyOutline';
@@ -50,7 +51,7 @@ export class WorkshopHud
                 <section class="welcome"><span class="eyebrow">留一点时间，给喜欢的小事</span><h1>一颗一颗，<br>拼出好心情。</h1><p>窗边有光，桌上有颜色。<br>今天，做一件只属于你的小小收藏。</p><span class="handwritten">make something little.</span></section>
                 <aside class="craft-card" aria-label="当前作品">
                     <div class="card-heading"><span class="eyebrow">TODAY’S LITTLE PROJECT</span><button id="pattern-button" class="text-button">换个图案 ${ARROW}</button></div>
-                    <div class="project-row"><canvas id="pattern-preview" width="128" height="128" aria-label="目标图案预览"></canvas><div><h2 id="pattern-title"></h2><p id="pattern-meta"></p><p>5 mm 拼豆 · 14.5 cm 钉板</p><span id="stage-label" class="stage-label">慢慢填满喜欢的颜色</span></div></div>
+                    <div class="project-row"><canvas id="pattern-preview" width="128" height="128" aria-label="目标图案预览"></canvas><div><h2 id="pattern-title"></h2><p id="pattern-meta"></p><p id="bead-specification"></p><span id="stage-label" class="stage-label">慢慢填满喜欢的颜色</span></div></div>
                     <div class="progress-caption"><span id="progress-caption">制作进度</span><span id="progress-number">0%</span></div>
                     <div class="progress-track"><span id="progress-fill"></span></div>
                     <div class="palette-heading"><span>挑一颗颜色</span><small>数字键快速切换</small></div>
@@ -114,6 +115,7 @@ export class WorkshopHud
             this.lastPattern = model.pattern.patternId;
             this.text('#pattern-title', model.pattern.name);
             this.text('#pattern-meta', `${model.pattern.width} × ${model.pattern.height} · ${model.pattern.palette.length} 种颜色`);
+            this.text('#bead-specification', beadSpecification(model.pattern));
             this.drawPattern(this.require<HTMLCanvasElement>('#pattern-preview'), model.pattern, model.pattern.targetNumbers);
             this.palette.replaceChildren();
 
@@ -333,7 +335,9 @@ export class WorkshopHud
             name.textContent = pattern.name;
             const count = document.createElement('small');
             count.textContent = `${pattern.width} × ${pattern.height} · ${pattern.palette.length} 色`;
-            button.append(canvas, name, count);
+            const specification = document.createElement('small');
+            specification.textContent = beadSpecification(pattern);
+            button.append(canvas, name, count, specification);
             button.addEventListener('click', () =>
             {
                 this.actions.dispatch({ type: 'selectPattern', patternId: pattern.patternId });
@@ -370,7 +374,9 @@ export class WorkshopHud
                 this.drawPattern(canvas, pattern, artwork.cells);
                 const title = document.createElement('strong');
                 title.textContent = artwork.name;
-                item.append(canvas, title);
+                const specification = document.createElement('small');
+                specification.textContent = beadSpecification(pattern);
+                item.append(canvas, title, specification);
                 grid.append(item);
             }
         }
@@ -440,6 +446,14 @@ export class WorkshopHud
 
         return element;
     }
+}
+
+function beadSpecification(pattern: WorkshopReadModel['pattern']): string
+{
+    const dimensions = getBeadDimensions(pattern);
+    const nominalDiameter = dimensions.format === 'mini'
+        ? dimensions.diameterMm.toFixed(1) : String(Math.round(dimensions.diameterMm));
+    return `${nominalDiameter} mm 拼豆 · ${dimensions.gridSize} × ${dimensions.gridSize} 钉板`;
 }
 
 function craftNote(model: WorkshopReadModel): string

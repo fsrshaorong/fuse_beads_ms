@@ -35,7 +35,7 @@ function assertModelDimensions(model)
     assert.ok(Math.abs(model.diameterMm - 4.77) < 0.001, `actual diameter: ${model.diameterMm} mm`);
     assert.ok(Math.abs(model.heightMm - 5.07) < 0.001, `actual height: ${model.heightMm} mm`);
     assert.ok(Math.abs(model.bottomMm) < 0.001, `actual bottom: ${model.bottomMm} mm`);
-    assert.equal(model.pegCount, 841, 'the physical board always has 29 × 29 pegs');
+    assert.equal(model.pegCount, 841, 'the selected Midi board has 29 × 29 pegs');
     assert.ok(Math.abs(model.pitchMm - 5) < 0.001, `actual peg pitch: ${model.pitchMm} mm`);
 }
 
@@ -100,6 +100,8 @@ try
     });
     await page.goto(url);
     await page.waitForFunction(() => window.beadsAtelier?.metrics().ready === true);
+    // Keep the established Midi regression fixture after Mini becomes the default.
+    await dispatch({ type: 'selectPattern', patternId: strawberryId });
     const initial = await read();
     assert.equal(initial.mode, 'workshop');
     assert.equal(initial.pattern.patternId, strawberryId);
@@ -109,8 +111,8 @@ try
     assert.equal(initial.pattern.targetNumbers.filter((value) => value === 0).length, 521);
     assert.equal(initial.board.cells.filter(Boolean).length, 0);
     assert.equal(initial.finishedArtworks.length, 0);
-    await assertModels(0, 0, 'new-visitor');
-    passed('new visitor receives the empty 29 × 29 strawberry and real-size Blender bead kit');
+    await assertModels(0, 0, 'midi-draft');
+    passed('selecting the Midi strawberry uses an empty 29 × 29 draft and real-size Blender bead kit');
 
     await focusBoard();
     assert.equal((await read()).board.cells.filter(Boolean).length, 0, 'entering the board places no bead');

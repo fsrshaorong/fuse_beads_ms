@@ -5,7 +5,7 @@ import {
 import { WorkshopApplication } from './App/WorkshopApplication';
 import type { WorkshopCommand, WorkshopReadModel } from './App/WorkshopApplication';
 import { BeadBoardView } from './Rendering/BeadBoardView';
-import { BEAD_DIMENSIONS, BEAD_TOP_Y } from './Rendering/BeadDimensions';
+import { BEAD_TOP_Y } from './Rendering/BeadDimensions';
 import { loadBeadModels } from './Rendering/BeadModels';
 import { PainterlyMaterials } from './Rendering/PainterlyMaterials';
 import { PainterlyOutline } from './Rendering/PainterlyOutline';
@@ -148,7 +148,7 @@ const iterationApi = {
             textures: renderer.info.memory.textures,
             ironingToolVisible: finishingView.root.getObjectByName('MiniatureCraftIron')?.visible ?? false,
             outlineEnabled: outline.getProfile().enabled,
-            beadDimensions: BEAD_DIMENSIONS,
+            beadDimensions: boardView.dimensions,
             beadModels: boardView.metrics(),
             zoom: cameraRig.zoom,
             webglError: renderer.getContext().getError()
@@ -226,6 +226,8 @@ function refreshView(): void
         || model.stage !== lastStage || model.ironProgress !== lastIronProgress)
     {
         boardView.sync(model);
+        boardPlane.constant = -boardView.hitPlaneHeight;
+        environment.setBeadFormat(boardView.dimensions.format);
         lastBoardRevision = model.board.revision;
         lastPattern = model.pattern.patternId;
         lastStage = model.stage;

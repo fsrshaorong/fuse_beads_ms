@@ -12,7 +12,9 @@
 - ReferenceProfile、PainterlyShaders、PainterlyMaterials 记录并移植原站渲染配置与 GLSL。差异见 [RENDERING.md](RENDERING.md)。不提交整份打包后的引擎代码。
 - `public/textures/painterly/` 六张纹理来自原项目已收录的 `assets/resources/Textures/Painterly/`；原站资源目录为 `/textures/ustwo-article/`。原文件随仓库保留，应用不运行时下载它们。
 - 工作室家具和钉板由 TypeScript 生成，未复制原站整套房间几何。旧项目的 ToyRoomFurniture GLB 未被这个玩法场景使用，因此没有加入仓库。
-- `assets/models/bead-kit.blend` 与 `public/models/bead-kit.glb` 由本仓库 `scripts/blender/generate_bead_kit.py` 在 Blender 中独立生成，没有下载第三方豆子网格。公开产品尺寸、外形依据与估算项见 [BEAD_MODELS.md](BEAD_MODELS.md)。
-- `atelier-strawberry-charm-29-v1` 是本轮新增的原创草莓轮廓图案，原 13 款图案和既有存档签名保持不变。
+- `assets/models/bead-kit.blend`、`public/models/bead-kit.glb` 由 `scripts/blender/generate_bead_kit.py` 生成 Midi 模型；`assets/models/mini-bead-kit.blend`、`public/models/mini-bead-kit.glb` 由 `scripts/blender/generate_mini_bead_kit.py` 生成独立 Mini 模型。两套均在 Blender 中原创建模，没有下载第三方豆子网格。
+- Mini 未熨烫外径 2.61 mm、高度 2.8 mm 来自 [Perler Mini Black](https://perler.com/products/2-000-mini-perler-beads-black)；145 mm、52×52 钉位布局参考 [Artkal BCP01](https://www.artkalfusebeads.com/products/artkal-clear-large-square-pegboard-for-mini-2-6mm-beads-bcp01)。2.7 mm 钉距、1 mm 内孔及熨烫形态属于建模估值；这组资料来自不同品牌，不构成单一品牌整套工程尺寸。完整来源和估算项见 [BEAD_MODELS.md](BEAD_MODELS.md)。
+- `atelier-strawberry-charm-29-v1` 为原创 29×29 草莓吊饰，加入时保留了原 13 款图案。新增的 `atelier-strawberry-mini-50-v1` 为原创 50×50「莓果小物」，1159 颗、6 色，新增叶脉、高光与籽的细节，并非旧图最近邻放大。它使用独立 ID 和六个独立色号，旧 14 张图案及既有存档签名保持原值。
+- 房间材质继续使用原参考配置；`bead`、`board` 的局部阴影倍率与法线偏移上限，以及未熨烫豆的细描边、成品的逐豆描边关闭，是针对微型几何的适配，详见 [RENDERING.md](RENDERING.md)。
 
 第三方依赖许可由各 npm 包提供；本文件是来源记录，不为参考美术另行声明许可证。

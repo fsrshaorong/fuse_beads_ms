@@ -10,9 +10,10 @@ import { getBeadColor } from './BeadPalette';
 import type { PainterlyMaterials } from './PainterlyMaterials';
 import type { BeadModels } from './BeadModels';
 import {
-    BEAD_DIMENSIONS, BEAD_HEIGHT, BEAD_PITCH, BOARD_SIZE, BOARD_SURFACE_Y,
-    BOARD_THICKNESS, MILLIMETRES_TO_WORLD, PEG_HEIGHT, patternGridOffset
+    BEAD_DIMENSIONS, BEAD_PITCH, BOARD_SIZE, BOARD_SURFACE_Y,
+    BOARD_THICKNESS, MILLIMETRES_TO_WORLD, getBeadDimensions, patternGridOffset
 } from './BeadDimensions';
+import type { BeadDimensions } from './BeadDimensions';
 
 /** Projects the existing integer board into a solid pegboard with hollow, beveled beads. */
 export class BeadBoardView
@@ -37,7 +38,8 @@ export class BeadBoardView
     private width = 16;
     private height = 16;
     private stage = '';
-    private readonly pitch = BEAD_PITCH;
+    private pitch = BEAD_PITCH;
+    private spec: Readonly<BeadDimensions> = BEAD_DIMENSIONS;
     private time = 0;
     private ironCoverage: readonly boolean[] = [];
 
@@ -47,6 +49,26 @@ export class BeadBoardView
         this.root.position.set(0, BOARD_SURFACE_Y, 0);
         this.hover.rotation.x = -Math.PI / 2;
         this.hover.visible = false;
+    }
+
+    public get dimensions(): Readonly<BeadDimensions>
+    {
+        return this.spec;
+    }
+
+    public get hitPlaneHeight(): number
+    {
+        return this.root.position.y + this.beadHeight;
+    }
+
+    private get beadHeight(): number
+    {
+        return this.spec.heightMm * MILLIMETRES_TO_WORLD;
+    }
+
+    private get pegHeight(): number
+    {
+        return this.spec.pegHeightMm * MILLIMETRES_TO_WORLD;
     }
 
     /** Updates only changed cell transforms and colors; all beads share geometry and material. */
@@ -121,7 +143,7 @@ export class BeadBoardView
                 continue;
             }
             const age = Math.min(1, Math.max(0, (timeSeconds - this.spawnTimes[index]) / 0.14));
-            const lift = (1 - age) * (1 - age) * BEAD_HEIGHT * 1.5;
+            const lift = (1 - age) * (1 - age) * this.beadHeight * 1.5;
             const fused = this.stage === 'finished' || this.ironCoverage[index] === true;
             this.positionCell(this.marker, index, lift);
             this.marker.scale.setScalar(1);
@@ -159,8 +181,8 @@ export class BeadBoardView
     /** Maps a world-space board hit to authoritative integer coordinates. */
     public hitCell(world: Vector3): { x: number; y: number } | null
     {
-        const x = Math.floor((world.x - this.root.position.x) / this.pitch - patternGridOffset(this.width) + 0.5);
-        const y = Math.floor((world.z - this.root.position.z) / this.pitch - patternGridOffset(this.height) + 0.5);
+        const x = Math.floor((world.x - this.root.position.x) / this.pitch - patternGridOffset(this.width, this.spec.gridSize) + 0.5);
+        const y = Math.floor((world.z - this.root.position.z) / this.pitch - patternGridOffset(this.height, this.spec.gridSize) + 0.5);
 
         if (x < 0 || y < 0 || x >= this.width || y >= this.height)
         {
@@ -174,9 +196,9 @@ export class BeadBoardView
     public cellWorld(x: number, y: number, target: Vector3): Vector3
     {
         return target.set(
-            this.root.position.x + (x + patternGridOffset(this.width)) * this.pitch,
-            this.root.position.y + BEAD_HEIGHT,
-            this.root.position.z + (y + patternGridOffset(this.height)) * this.pitch
+            this.root.position.x + (x + patternGridOffset(this.width, this.spec.gridSize)) * this.pitch,
+            this.hitPlaneHeight,
+            this.root.position.z + (y + patternGridOffset(this.height, this.spec.gridSize)) * this.pitch
         );
     }
 
@@ -188,10 +210,11 @@ export class BeadBoardView
         if (cell !== null)
         {
             this.hover.position.set(
-                (cell.x + patternGridOffset(this.width)) * this.pitch,
-                BEAD_HEIGHT + 0.001,
-                (cell.y + patternGridOffset(this.height)) * this.pitch
+                (cell.x + patternGridOffset(this.width, this.spec.gridSize)) * this.pitch,
+                this.beadHeight + 0.001,
+                (cell.y + patternGridOffset(this.height, this.spec.gridSize)) * this.pitch
             );
+            this.hover.scale.setScalar(this.pitch / BEAD_PITCH);
         }
     }
 
@@ -209,12 +232,13 @@ export class BeadBoardView
         const bounds = this.beads?.geometry.boundingBox;
         return {
             source: 'Blender GLB',
+            format: this.spec.format,
             rawCount: this.beads?.count ?? 0,
             fusedCount: this.fusedBeads?.count ?? 0,
             diameterMm: bounds === null || bounds === undefined ? 0 : (bounds.max.x - bounds.min.x) / MILLIMETRES_TO_WORLD,
             heightMm: bounds === null || bounds === undefined ? 0 : (bounds.max.y - bounds.min.y) / MILLIMETRES_TO_WORLD,
             bottomMm: bounds === null || bounds === undefined ? 0 : bounds.min.y / MILLIMETRES_TO_WORLD,
-            pegCount: BEAD_DIMENSIONS.gridSize ** 2,
+            pegCount: this.spec.gridSize ** 2,
             pitchMm: this.pitch / MILLIMETRES_TO_WORLD
         };
     }
@@ -225,6 +249,8 @@ export class BeadBoardView
         this.patternId = model.pattern.patternId;
         this.width = model.pattern.width;
         this.height = model.pattern.height;
+        this.spec = getBeadDimensions(model.pattern);
+        this.pitch = this.spec.pitchMm * MILLIMETRES_TO_WORLD;
         const count = this.width * this.height;
         this.cells = new Array<number>(count).fill(0);
         this.cellColors = Array.from({ length: count }, () => new Color('#ffffff'));
@@ -235,46 +261,48 @@ export class BeadBoardView
         );
         this.ownedGeometries.push(baseGeometry);
         const base = new Mesh(baseGeometry, this.materials.create('#eee9d9', 'board'));
-        base.name = 'MidiPegboard145mm';
+        base.name = `${this.spec.format}Pegboard145mm`;
         base.position.y = -BOARD_THICKNESS / 2;
         base.castShadow = true;
         base.receiveShadow = true;
         this.root.add(base);
 
-        const pinRadius = BEAD_DIMENSIONS.pegDiameterMm * MILLIMETRES_TO_WORLD / 2;
-        const pinGeometry = new CylinderGeometry(pinRadius * 0.80, pinRadius, PEG_HEIGHT, 12);
+        const pinRadius = this.spec.pegDiameterMm * MILLIMETRES_TO_WORLD / 2;
+        const pinGeometry = new CylinderGeometry(pinRadius * 0.80, pinRadius, this.pegHeight, 12);
         this.ownedGeometries.push(pinGeometry);
         const pins = new InstancedMesh(pinGeometry, this.materials.create('#dad6c7', 'board'),
-            BEAD_DIMENSIONS.gridSize ** 2);
+            this.spec.gridSize ** 2);
         pins.name = 'PegboardPins';
         pins.userData.painterlyOutline = { enabled: false };
         pins.receiveShadow = true;
         pins.castShadow = false;
 
-        for (let row = 0; row < BEAD_DIMENSIONS.gridSize; row += 1)
+        for (let row = 0; row < this.spec.gridSize; row += 1)
         {
-            for (let column = 0; column < BEAD_DIMENSIONS.gridSize; column += 1)
+            for (let column = 0; column < this.spec.gridSize; column += 1)
             {
-                const center = (BEAD_DIMENSIONS.gridSize - 1) / 2;
-                this.marker.position.set((column - center) * this.pitch, PEG_HEIGHT / 2, (row - center) * this.pitch);
+                const center = (this.spec.gridSize - 1) / 2;
+                this.marker.position.set((column - center) * this.pitch, this.pegHeight / 2, (row - center) * this.pitch);
                 this.marker.rotation.set(0, 0, 0);
                 this.marker.scale.setScalar(1);
                 this.marker.updateMatrix();
-                pins.setMatrixAt(row * BEAD_DIMENSIONS.gridSize + column, this.marker.matrix);
+                pins.setMatrixAt(row * this.spec.gridSize + column, this.marker.matrix);
             }
         }
 
-        const beadGeometry = this.models.raw.clone();
+        const kit = this.spec.format === 'mini' ? this.models.mini : this.models;
+        const beadGeometry = kit.raw.clone();
         this.ownedGeometries.push(beadGeometry);
         this.beads = new InstancedMesh(beadGeometry, this.materials.create('#ffffff', 'bead'), count);
         this.beads.name = 'HollowBeadInstances';
         this.beads.castShadow = true;
         this.beads.receiveShadow = true;
         this.beads.frustumCulled = false;
-        const fusedGeometry = this.models.fused.clone();
+        const fusedGeometry = kit.fused.clone();
         this.ownedGeometries.push(fusedGeometry);
         this.fusedBeads = new InstancedMesh(fusedGeometry, this.materials.create('#ffffff', 'bead'), count);
         this.fusedBeads.name = 'LocallyFusedBeadInstances';
+        this.fusedBeads.userData.painterlyOutline = { enabled: false };
         this.fusedBeads.castShadow = true;
         this.fusedBeads.receiveShadow = true;
         this.fusedBeads.frustumCulled = false;
@@ -326,8 +354,8 @@ export class BeadBoardView
 
         for (let index = 0; index < this.width * this.height; index += 1)
         {
-            const x = (index % this.width + patternGridOffset(this.width)) * this.pitch;
-            const z = (Math.floor(index / this.width) + patternGridOffset(this.height)) * this.pitch + this.pitch * 0.12;
+            const x = (index % this.width + patternGridOffset(this.width, this.spec.gridSize)) * this.pitch;
+            const z = (Math.floor(index / this.width) + patternGridOffset(this.height, this.spec.gridSize)) * this.pitch + this.pitch * 0.12;
             positions.push(x - size / 2, 0.012, z - size / 2, x + size / 2, 0.012, z - size / 2,
                 x - size / 2, 0.012, z + size / 2, x + size / 2, 0.012, z - size / 2,
                 x + size / 2, 0.012, z + size / 2, x - size / 2, 0.012, z + size / 2);
@@ -367,7 +395,7 @@ export class BeadBoardView
 
             if (visible)
             {
-                labelHeight = filled === 0 ? PEG_HEIGHT + 0.001 : BEAD_HEIGHT + 0.001;
+                labelHeight = filled === 0 ? this.pegHeight + 0.001 : this.beadHeight + 0.001;
             }
 
             for (let vertex = 0; vertex < 6; vertex += 1)
@@ -382,9 +410,9 @@ export class BeadBoardView
     private positionCell(object: Object3D, index: number, height: number): void
     {
         object.position.set(
-            (index % this.width + patternGridOffset(this.width)) * this.pitch,
+            (index % this.width + patternGridOffset(this.width, this.spec.gridSize)) * this.pitch,
             height,
-            (Math.floor(index / this.width) + patternGridOffset(this.height)) * this.pitch
+            (Math.floor(index / this.width) + patternGridOffset(this.height, this.spec.gridSize)) * this.pitch
         );
         object.rotation.set(0, 0, 0);
     }

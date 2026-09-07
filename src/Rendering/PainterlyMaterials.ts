@@ -1,6 +1,6 @@
 import {
     Color, DataTexture, MeshStandardMaterial, NoColorSpace, RepeatWrapping,
-    RGBAFormat, SRGBColorSpace, Texture, TextureLoader
+    RGBAFormat, ShaderChunk, SRGBColorSpace, Texture, TextureLoader
 } from 'three';
 
 import {
@@ -66,6 +66,8 @@ interface MaterialHandle
     readonly settings: ReferencePainterlyRoleSettings;
     readonly brushScale: { value: number };
     readonly brushStrength: { value: number };
+    readonly shadowStrength: { value: number };
+    readonly shadowStrengthMultiplier: number;
 }
 
 const ROLE_ALIASES: Readonly<Record<string, ReferencePainterlyRole>> = {
@@ -86,7 +88,7 @@ const OUTLINE_ROLE_WIDTHS: Readonly<Partial<Record<PainterlyRole, number>>> = {
     fabric: 1.15,
     green: 1,
     blue: 0,
-    bead: 0.4,
+    bead: 0.25,
     board: 1
 };
 
@@ -107,9 +109,10 @@ const NUMERIC_PROFILE_RANGES = {
 } as const;
 
 /**
- * Owns the static assemble-painterly-v6 port and local reference textures.
+ * Owns the static reference port and local reference textures.
  * All roles use the source's full dual-texture composition. There is no custom
  * geometry deformation, so ordinary Three depth materials match every instance.
+ * Bead and board roles alone adapt shadow sampling and strength to their scale.
  */
 export class PainterlyMaterials
 {
@@ -190,6 +193,8 @@ export class PainterlyMaterials
         }
 
         const settings = REFERENCE_PAINTERLY_ROLE_SETTINGS[sourceRole];
+        const microSurface = role === 'bead' || role === 'board';
+        const shadowStrengthMultiplier = role === 'bead' ? 0.30 : role === 'board' ? 0.25 : 1;
         const material = new MeshStandardMaterial({
             color,
             map: this.whiteTexture,
@@ -201,7 +206,9 @@ export class PainterlyMaterials
             material,
             settings,
             brushScale: { value: this.profile.brushScale * settings.brushScaleMultiplier },
-            brushStrength: { value: this.profile.brushStrength * settings.brushStrengthMultiplier }
+            brushStrength: { value: this.profile.brushStrength * settings.brushStrengthMultiplier },
+            shadowStrength: { value: this.profile.shadowStrength * shadowStrengthMultiplier },
+            shadowStrengthMultiplier
         };
         material.name = `Painterly:${sourceRole}:${color}`;
         material.userData.painterlyOutline = {
@@ -215,12 +222,24 @@ export class PainterlyMaterials
                 uPainterBrushTexture: this.brushes[settings.brushIndex],
                 uPainterBrushScale: handle.brushScale,
                 uPainterBrushStrength: handle.brushStrength,
+                uPainterShadowStrength: handle.shadowStrength,
                 uPainterSurfaceTextureWeight: { value: settings.surfaceTextureWeight },
                 uPainterToneWeight: { value: settings.toneWeight }
             });
             shader.vertexShader = PAINTERLY_VERTEX_DECLARATIONS + shader.vertexShader;
             shader.vertexShader = replaceShaderChunk(shader.vertexShader,
                 '#include <project_vertex>', PAINTERLY_VERTEX_POSITION);
+            if (microSurface)
+            {
+                // The room's 0.026-world-unit normal offset exceeds a small bead's
+                // bore. Limit receiver displacement without changing any caster,
+                // room material, shadow map, or reference light/color formula.
+                const microShadowVertex = replaceShaderChunk(ShaderChunk.shadowmap_vertex,
+                    'directionalLightShadows[ i ].shadowNormalBias',
+                    'min( directionalLightShadows[ i ].shadowNormalBias, 0.0004 )');
+                shader.vertexShader = replaceShaderChunk(shader.vertexShader,
+                    '#include <shadowmap_vertex>', microShadowVertex);
+            }
             shader.fragmentShader = PAINTERLY_FRAGMENT_DECLARATIONS + shader.fragmentShader;
             shader.fragmentShader = replaceShaderChunk(shader.fragmentShader,
                 '#include <shadowmap_pars_fragment>',
@@ -230,7 +249,9 @@ export class PainterlyMaterials
             shader.fragmentShader = replaceShaderChunk(shader.fragmentShader,
                 '#include <opaque_fragment>', PAINTERLY_LIGHT_FRAGMENT);
         };
-        material.customProgramCacheKey = (): string => 'assemble-painterly-v6-static-instanced-r185';
+        material.customProgramCacheKey = (): string => microSurface
+            ? 'assemble-painterly-v7-micro-shadow-static-instanced-r185'
+            : 'assemble-painterly-v6-static-instanced-r185';
         this.materials.set(cacheKey, handle);
 
         return material;
@@ -329,6 +350,7 @@ export class PainterlyMaterials
         {
             handle.brushScale.value = profile.brushScale * handle.settings.brushScaleMultiplier;
             handle.brushStrength.value = profile.brushStrength * handle.settings.brushStrengthMultiplier;
+            handle.shadowStrength.value = profile.shadowStrength * handle.shadowStrengthMultiplier;
         }
     }
 

@@ -23,6 +23,7 @@ import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import type { PainterlyRole } from '../Rendering/PainterlyMaterials';
 import { REFERENCE_PAINTERLY_PALETTE } from '../Rendering/ReferenceProfile';
 import { BOARD_SURFACE_Y } from '../Rendering/BeadDimensions';
+import type { BeadFormat } from '../Rendering/BeadDimensions';
 import type { BeadModels } from '../Rendering/BeadModels';
 
 export interface WorkshopMaterialFactory
@@ -39,6 +40,7 @@ export interface WorkshopEnvironment
     boardPosition: Vector3;
     displayPosition: Vector3;
     workbench: Mesh;
+    setBeadFormat(format: BeadFormat): void;
     update(time: number, isWalking: boolean, isSeated: boolean): void;
     dispose(): void;
 }
@@ -81,6 +83,8 @@ export function createWorkshopEnvironment(materials: WorkshopMaterialFactory, be
     const ownedExtraMaterials = new Set<MeshStandardMaterial | MeshBasicMaterial>();
     const ownedTextures = new Set<CanvasTexture>();
     const staticAssemblies: Group[] = [];
+    const looseBeadUpdates: ((format: BeadFormat) => void)[] = [];
+    let activeBeadFormat: BeadFormat = 'midi';
     let disposed = false;
 
     function material(color: string, role: PainterlyRole): MeshStandardMaterial
@@ -498,30 +502,43 @@ export function createWorkshopEnvironment(materials: WorkshopMaterialFactory, be
         phase: number
     ): void
     {
-        const geometry = cached('decorativeBead', () => beadModels.raw.clone());
-        const instances = new InstancedMesh(geometry, material(color, 'bead'), count);
+        const geometries = {
+            midi: cached('decorativeMidiBead', () => beadModels.raw.clone()),
+            mini: cached('decorativeMiniBead', () => beadModels.mini.raw.clone())
+        };
+        ownedGeometries.add(geometries.midi);
+        ownedGeometries.add(geometries.mini);
+        const instances = new InstancedMesh(geometries.midi, material(color, 'bead'), count);
         instances.name = 'SortedLooseBeads';
         instances.castShadow = false;
         instances.receiveShadow = true;
         const transform = new Object3D();
         const vertexPosition = new Vector3();
-        const positions = geometry.getAttribute('position');
-        for (let index = 0; index < count; index += 1)
+        const placeInstances = (format: BeadFormat): void =>
         {
-            const distance = Math.sqrt((index + 0.5) / count);
-            const angle = index * 2.399 + phase;
-            transform.rotation.set(Math.sin(index * 7) * 0.22, angle, Math.cos(index * 3) * 0.18);
-            let lowestVertex = Number.POSITIVE_INFINITY;
-            for (let vertex = 0; vertex < positions.count; vertex += 1)
+            instances.geometry = geometries[format];
+            const positions = instances.geometry.getAttribute('position');
+            for (let index = 0; index < count; index += 1)
             {
-                vertexPosition.fromBufferAttribute(positions, vertex).applyQuaternion(transform.quaternion);
-                lowestVertex = Math.min(lowestVertex, vertexPosition.y);
+                const distance = Math.sqrt((index + 0.5) / count);
+                const angle = index * 2.399 + phase;
+                transform.rotation.set(Math.sin(index * 7) * 0.22, angle, Math.cos(index * 3) * 0.18);
+                let lowestVertex = Number.POSITIVE_INFINITY;
+                for (let vertex = 0; vertex < positions.count; vertex += 1)
+                {
+                    vertexPosition.fromBufferAttribute(positions, vertex).applyQuaternion(transform.quaternion);
+                    lowestVertex = Math.min(lowestVertex, vertexPosition.y);
+                }
+                transform.position.set(center[0] + Math.cos(angle) * radiusX * distance,
+                    center[1] - lowestVertex, center[2] + Math.sin(angle) * radiusZ * distance);
+                transform.updateMatrix();
+                instances.setMatrixAt(index, transform.matrix);
             }
-            transform.position.set(center[0] + Math.cos(angle) * radiusX * distance,
-                center[1] - lowestVertex, center[2] + Math.sin(angle) * radiusZ * distance);
-            transform.updateMatrix();
-            instances.setMatrixAt(index, transform.matrix);
-        }
+            instances.instanceMatrix.needsUpdate = true;
+            instances.computeBoundingSphere();
+        };
+        placeInstances('midi');
+        looseBeadUpdates.push(placeInstances);
         parent.add(instances);
     }
 
@@ -631,6 +648,18 @@ export function createWorkshopEnvironment(materials: WorkshopMaterialFactory, be
         standPosition: new Vector3(0, 0, 1.8),
         boardPosition: new Vector3(0, BOARD_SURFACE_Y, 0),
         displayPosition: new Vector3(2.68, 1.43, -2.95),
+        setBeadFormat(format: BeadFormat): void
+        {
+            if (disposed || format === activeBeadFormat)
+            {
+                return;
+            }
+            activeBeadFormat = format;
+            for (const update of looseBeadUpdates)
+            {
+                update(format);
+            }
+        },
         update(time: number, isWalking: boolean, isSeated: boolean): void
         {
             if (disposed)
@@ -688,6 +717,7 @@ export function createWorkshopEnvironment(materials: WorkshopMaterialFactory, be
             geometryCache.clear();
             materialCache.clear();
             staticAssemblies.length = 0;
+            looseBeadUpdates.length = 0;
         }
     };
 }
