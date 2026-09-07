@@ -78,6 +78,18 @@ const ROLE_ALIASES: Readonly<Record<string, ReferencePainterlyRole>> = {
     foliage: 'green'
 };
 
+// CSS-pixel widths for the requested outline layer; surface shading is unchanged.
+const OUTLINE_ROLE_WIDTHS: Readonly<Partial<Record<PainterlyRole, number>>> = {
+    background: 0.65,
+    ground: 0,
+    woodDark: 1.35,
+    fabric: 1.15,
+    green: 1,
+    blue: 0,
+    bead: 0.75,
+    board: 1
+};
+
 const NUMERIC_PROFILE_RANGES = {
     brushStrength: [0, 1],
     brushScale: [0.5, 8],
@@ -170,7 +182,7 @@ export class PainterlyMaterials
     {
         this.assertAlive();
         const sourceRole = resolveRole(role);
-        const cacheKey = `${sourceRole}:${color.toLowerCase()}`;
+        const cacheKey = `${role}:${color.toLowerCase()}`;
         const existing = this.materials.get(cacheKey);
         if (existing !== undefined)
         {
@@ -191,6 +203,9 @@ export class PainterlyMaterials
             brushStrength: { value: this.profile.brushStrength * settings.brushStrengthMultiplier }
         };
         material.name = `Painterly:${sourceRole}:${color}`;
+        material.userData.painterlyOutline = {
+            width: OUTLINE_ROLE_WIDTHS[role] ?? OUTLINE_ROLE_WIDTHS[sourceRole] ?? 1.5
+        };
         material.onBeforeCompile = (shader): void =>
         {
             Object.assign(shader.uniforms, this.uniforms, {

@@ -15,7 +15,8 @@
         "test": "tsx --test Tests/*.test.ts",
         "scenario": "tsx scripts/scenario.ts",
         "selfcheck": "node scripts/browser-selfcheck.mjs",
-        "selfcheck:rendering": "node scripts/rendering-selfcheck.mjs"
+        "selfcheck:rendering": "node scripts/rendering-selfcheck.mjs",
+        "selfcheck:outline": "node scripts/outline-selfcheck.mjs"
     },
     "dependencies": {
         "three": "0.185.0"

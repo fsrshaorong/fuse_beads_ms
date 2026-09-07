@@ -47,6 +47,19 @@ try
     await page.locator('.settings-dialog [data-close]').click();
     assert.ok((await page.locator('.world-canvas').screenshot()).equals(stillFrame),
         'restoring the reference preset restores the exact idle frame');
+    await page.getByRole('button', { name: '美术调色', exact: true }).click();
+    await page.locator('#outline-enabled').uncheck();
+    assert.equal((await page.evaluate(() => window.beadsAtelier.metrics())).outlineEnabled, false);
+    await page.locator('.settings-dialog [data-close]').click();
+    assert.ok(!(await page.locator('.world-canvas').screenshot()).equals(stillFrame),
+        'outlines are visibly present in the default workshop');
+    await page.getByRole('button', { name: '美术调色', exact: true }).click();
+    await page.getByRole('button', { name: '恢复参考效果', exact: true }).click();
+    assert.equal(await page.locator('#outline-enabled').isChecked(), true);
+    assert.equal(await page.locator('#outline-control').inputValue(), '1');
+    await page.locator('.settings-dialog [data-close]').click();
+    assert.ok((await page.locator('.world-canvas').screenshot()).equals(stillFrame),
+        'the outline reset restores the exact default workshop');
     await snapshot('01-workshop.png');
     const start = await read();
     await page.keyboard.down('KeyD');
@@ -176,7 +189,7 @@ try
     assert.equal(metrics.webglError, 0);
     assert.deepEqual(errors, [], 'browser and shader console stays clean');
     const report = { passed: true, viewport: '1280x720', metrics, errors, checks: [
-        'static idle scene', 'reference style controls and reset',
+        'static idle scene', 'reference style controls and reset', 'visible outline toggle and reset',
         'physical movement', 'sit/focus/return', 'entry-click gate', 'drag interpolation',
         'stroke undo/redo', 'continuous zoom', 'save/reload', 'ironing pointer',
         'HUD captured-pointer isolation', 'restored ironing visibility',

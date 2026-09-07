@@ -129,6 +129,7 @@ export class FinishingView
         const dialMarkerGeometry = this.ownGeometry(new RoundedBoxGeometry(0.004, 0.003, 0.013, 1, 0.001));
         const dialMarker = new Mesh(dialMarkerGeometry, materials.create('#725f4c', 'metal'));
         dialMarker.name = 'DialEngraving';
+        dialMarker.userData.painterlyOutline = { enabled: false };
         dialMarker.position.set(0, 0.1015, -0.095);
         this.iron.add(dialMarker);
 

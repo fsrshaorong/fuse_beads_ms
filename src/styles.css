@@ -116,6 +116,8 @@ kbd { font-family: inherit; font-size: 9px; font-weight: 400; display: inline-fl
 .settings-dialog, .reset-dialog { max-width: 420px; }
 .settings-dialog label { font-size: 12px; margin: 25px 0; display: block; }
 .settings-dialog input { display: block; width: 100%; margin-top: 14px; accent-color: #929b7d; }
+.settings-dialog .outline-toggle { display: flex; align-items: center; justify-content: space-between; }
+.settings-dialog .outline-toggle input { width: 18px; height: 18px; margin: 0; accent-color: #795367; }
 .paper-dialog .dialog-footnote { font-size: 10px; margin-bottom: 0; }
 @media (min-width: 1700px) {
     .craft-card { top: 19%; right: 4%; width: 296px; padding: 26px; }

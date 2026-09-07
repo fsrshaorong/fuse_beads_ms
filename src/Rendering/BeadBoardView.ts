@@ -200,6 +200,8 @@ export class BeadBoardView
         const pinGeometry = new CylinderGeometry(0.006, 0.01, 0.039, 10);
         this.ownedGeometries.push(pinGeometry);
         const pins = new InstancedMesh(pinGeometry, this.materials.create('#dadcc5', 'board'), count);
+        pins.name = 'PegboardPins';
+        pins.userData.painterlyOutline = { enabled: false };
         pins.receiveShadow = true;
         pins.castShadow = true;
 

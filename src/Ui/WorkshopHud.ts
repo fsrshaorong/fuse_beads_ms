@@ -2,12 +2,15 @@ import type { WorkshopCommand, WorkshopReadModel } from '../App/WorkshopApplicat
 import { getBeadColor, getBeadColorName } from '../Rendering/BeadPalette';
 import { DEFAULT_PAINTERLY_PROFILE } from '../Rendering/PainterlyMaterials';
 import type { PainterlyProfile } from '../Rendering/PainterlyMaterials';
+import { DEFAULT_PAINTERLY_OUTLINE_PROFILE } from '../Rendering/PainterlyOutline';
+import type { PainterlyOutlineProfile } from '../Rendering/PainterlyOutline';
 
 interface HudActions
 {
     readonly dispatch: (command: WorkshopCommand) => void;
     readonly interrupt: () => void;
     readonly style: (profile: Partial<PainterlyProfile>) => void;
+    readonly outline: (profile: Partial<PainterlyOutlineProfile>) => void;
 }
 
 const ARROW = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M5 12h14m-6-6 6 6-6 6"/></svg>';
@@ -66,7 +69,7 @@ export class WorkshopHud
                 <div class="toast" role="status" aria-live="polite"></div>
                 <div class="loading-screen"><span class="bead-mark"><i></i><i></i><i></i><i></i></span><p>正在整理你的手作桌…</p></div>
                 <dialog class="paper-dialog pattern-dialog"><div class="dialog-top"><span class="eyebrow">A SMALL COLLECTION OF IDEAS</span><button data-close aria-label="关闭">×</button></div><h2>今天，想拼点什么？</h2><p>每张图案都会保留自己的制作进度。</p><div id="pattern-grid" class="pattern-grid"></div></dialog>
-                <dialog class="paper-dialog settings-dialog"><div class="dialog-top"><span class="eyebrow">LIGHT & COLOR</span><button data-close aria-label="关闭">×</button></div><h2>柔光玩具房 · 静态笔触</h2><p>默认使用参考页面的光影与笔触参数。</p><label>笔触浓度 <input id="brush-control" type="range" min="0" max="1" step="0.01" value="0.5"></label><label>暖光染色 <input id="warmth-control" type="range" min="0" max="1" step="0.01" value="1"></label><label>阴影层次 <input id="shadow-control" type="range" min="0" max="1" step="0.01" value="0.92"></label><button id="restore-style" class="primary-button">恢复参考效果</button><p class="dialog-footnote">模型与笔触均无抖动，镜头与手作操作保持流畅。</p></dialog>
+                <dialog class="paper-dialog settings-dialog"><div class="dialog-top"><span class="eyebrow">LIGHT & COLOR</span><button data-close aria-label="关闭">×</button></div><h2>柔光玩具房 · 静态笔触</h2><p>默认使用参考页面的光影与笔触参数。</p><label>笔触浓度 <input id="brush-control" type="range" min="0" max="1" step="0.01" value="0.5"></label><label>暖光染色 <input id="warmth-control" type="range" min="0" max="1" step="0.01" value="1"></label><label>阴影层次 <input id="shadow-control" type="range" min="0" max="1" step="0.01" value="0.92"></label><label class="outline-toggle">轮廓描边 <input id="outline-enabled" type="checkbox" checked></label><label>描边粗细 <input id="outline-control" type="range" min="0.25" max="2" step="0.05" value="1"></label><button id="restore-style" class="primary-button">恢复参考效果</button><p class="dialog-footnote">模型与笔触均无抖动，镜头与手作操作保持流畅。</p></dialog>
                 <dialog class="paper-dialog collection-dialog"><div class="dialog-top"><span class="eyebrow">MADE BY YOU</span><button data-close aria-label="关闭">×</button></div><h2>小小的成品收藏</h2><div id="collection-grid" class="pattern-grid"></div><p id="collection-empty">拼好第一件作品，再轻轻熨烫，把今天的好心情收在这里。</p></dialog>
                 <dialog class="paper-dialog reset-dialog"><div class="dialog-top"><span class="eyebrow">A FRESH START</span><button data-close aria-label="关闭">×</button></div><h2>重新制作这张图案？</h2><p>当前图案的拼豆和熨烫进度会清空，已经收藏的成品仍然保留。</p><button id="confirm-reset" class="primary-button">清空并重新制作</button></dialog>
             </main>`;
@@ -81,6 +84,8 @@ export class WorkshopHud
         this.require<HTMLInputElement>('#brush-control').value = String(DEFAULT_PAINTERLY_PROFILE.brushStrength);
         this.require<HTMLInputElement>('#warmth-control').value = String(DEFAULT_PAINTERLY_PROFILE.warmth);
         this.require<HTMLInputElement>('#shadow-control').value = String(DEFAULT_PAINTERLY_PROFILE.shadowStrength);
+        this.require<HTMLInputElement>('#outline-enabled').checked = DEFAULT_PAINTERLY_OUTLINE_PROFILE.enabled;
+        this.require<HTMLInputElement>('#outline-control').value = String(DEFAULT_PAINTERLY_OUTLINE_PROFILE.strength);
         this.bind();
     }
 
@@ -287,9 +292,20 @@ export class WorkshopHud
         this.require<HTMLButtonElement>('#restore-style').addEventListener('click', () =>
         {
             this.actions.style(DEFAULT_PAINTERLY_PROFILE);
+            this.actions.outline(DEFAULT_PAINTERLY_OUTLINE_PROFILE);
             this.require<HTMLInputElement>('#brush-control').value = String(DEFAULT_PAINTERLY_PROFILE.brushStrength);
             this.require<HTMLInputElement>('#warmth-control').value = String(DEFAULT_PAINTERLY_PROFILE.warmth);
             this.require<HTMLInputElement>('#shadow-control').value = String(DEFAULT_PAINTERLY_PROFILE.shadowStrength);
+            this.require<HTMLInputElement>('#outline-enabled').checked = DEFAULT_PAINTERLY_OUTLINE_PROFILE.enabled;
+            this.require<HTMLInputElement>('#outline-control').value = String(DEFAULT_PAINTERLY_OUTLINE_PROFILE.strength);
+        });
+        this.require<HTMLInputElement>('#outline-enabled').addEventListener('change', (event) =>
+        {
+            this.actions.outline({ enabled: (event.target as HTMLInputElement).checked });
+        });
+        this.require<HTMLInputElement>('#outline-control').addEventListener('input', (event) =>
+        {
+            this.actions.outline({ strength: Number((event.target as HTMLInputElement).value) });
         });
     }
 

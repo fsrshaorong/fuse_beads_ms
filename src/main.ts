@@ -6,6 +6,7 @@ import { WorkshopApplication } from './App/WorkshopApplication';
 import type { WorkshopCommand, WorkshopReadModel } from './App/WorkshopApplication';
 import { BeadBoardView } from './Rendering/BeadBoardView';
 import { PainterlyMaterials } from './Rendering/PainterlyMaterials';
+import { PainterlyOutline } from './Rendering/PainterlyOutline';
 import { configurePainterlyRenderer, createPainterlyLighting } from './Rendering/PainterlyLighting';
 import { FinishingView } from './Scene/FinishingView';
 import { WorkshopCamera } from './Scene/WorkshopCamera';
@@ -54,7 +55,8 @@ const frameTimes: number[] = [];
 const hud = new WorkshopHud(root, {
     dispatch: runCommand,
     interrupt: interruptInput,
-    style: (profile) => materials.setProfile(profile)
+    style: (profile) => materials.setProfile(profile),
+    outline: (profile) => outline.setProfile(profile)
 });
 
 try
@@ -68,6 +70,7 @@ catch (error)
 }
 
 configurePainterlyRenderer(renderer, window.devicePixelRatio);
+const outline = new PainterlyOutline(renderer);
 const lighting = createPainterlyLighting(new Vector3(1.27, 1.54, -0.96));
 scene.add(lighting);
 const environment = createWorkshopEnvironment(materials);
@@ -93,7 +96,7 @@ materials.ready.then(() =>
     isReady = true;
     refreshView();
     cameraRig.initializeWorldView(environment.avatar.position);
-    renderer.render(scene, cameraRig.camera);
+    outline.render(scene, cameraRig.camera);
     hud.ready();
     previousTime = performance.now();
     frameRequest = requestAnimationFrame(frame);
@@ -137,6 +140,7 @@ const iterationApi = {
             geometries: renderer.info.memory.geometries,
             textures: renderer.info.memory.textures,
             ironingToolVisible: finishingView.root.getObjectByName('MiniatureCraftIron')?.visible ?? false,
+            outlineEnabled: outline.getProfile().enabled,
             zoom: cameraRig.zoom,
             webglError: renderer.getContext().getError()
         };
@@ -257,7 +261,7 @@ function frame(now: number): void
         boardView.update(elapsed);
         finishingView.update(elapsed, pointerWorld, pointerMode === 'iron');
         materials.update(elapsed);
-        renderer.render(scene, cameraRig.camera);
+        outline.render(scene, cameraRig.camera);
     }
 
     frameRequest = requestAnimationFrame(frame);
@@ -623,6 +627,7 @@ if (import.meta.hot)
         window.clearTimeout(saveTimer);
         inputLifetime.abort();
         hud.dispose();
+        outline.dispose();
         boardView.dispose();
         finishingView.dispose();
         environment.dispose();

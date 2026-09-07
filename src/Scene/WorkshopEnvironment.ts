@@ -260,7 +260,8 @@ export function createWorkshopEnvironment(materials: WorkshopMaterialFactory): W
     {
         const zCenter = -0.63 + side * 1.12;
         mesh(window, `PleatedCurtain:${side}`, createCurtainGeometry(),
-            REFERENCE_PAINTERLY_PALETTE.fabric, 'fabric', -4.04, 1.96, zCenter);
+            REFERENCE_PAINTERLY_PALETTE.fabric, 'fabric', -4.04, 1.96, zCenter)
+            .userData.painterlyOutline = { enabled: false };
         for (let fold = 0; fold < 5; fold += 1)
         {
             const loop = ring(window, 'CurtainBrassLoop', 0.032, 0.007,
@@ -289,12 +290,13 @@ export function createWorkshopEnvironment(materials: WorkshopMaterialFactory): W
         for (const edge of [-1, 1])
         {
             box(rug, 'RugTassel', [0.035, 0.025, 0.16], [-2.19 + index * 0.318, 0.045, 0.60 + edge * 1.98],
-                REFERENCE_PAINTERLY_PALETTE.lavender, 'fabric', 0.008);
+                REFERENCE_PAINTERLY_PALETTE.lavender, 'fabric', 0.008).userData.painterlyOutline = { enabled: false };
         }
     }
     for (const x of [-2.20, 2.24])
     {
-        box(rug, 'RugWovenBorder', [0.022, 0.006, 3.3], [x, 0.064, 0.60], REFERENCE_PAINTERLY_PALETTE.lavender, 'fabric', 0.002);
+        box(rug, 'RugWovenBorder', [0.022, 0.006, 3.3], [x, 0.064, 0.60], REFERENCE_PAINTERLY_PALETTE.lavender, 'fabric', 0.002)
+            .userData.painterlyOutline = { enabled: false };
     }
 
     const workbench = box(root, 'Workbench', [3.8, 0.18, 2.3], [0, 1.05, 0], REFERENCE_PAINTERLY_PALETTE.wood, 'wood', 0.075);
@@ -375,7 +377,7 @@ export function createWorkshopEnvironment(materials: WorkshopMaterialFactory): W
         box(parent, 'PaperJarLabel', [0.114, 0.090, 0.010], [x, base + height * 0.51, z + 0.112],
             REFERENCE_PAINTERLY_PALETTE.cream, 'ceramic', 0.008);
         box(parent, 'JarLabelRule', [0.052, 0.008, 0.002], [x, base + height * 0.53, z + 0.119],
-            REFERENCE_PAINTERLY_PALETTE.woodDark, 'ceramic', 0.001);
+            REFERENCE_PAINTERLY_PALETTE.woodDark, 'ceramic', 0.001).userData.painterlyOutline = { enabled: false };
     }
 
     const gallery = assembly('LittleColourGallery');
@@ -555,8 +557,10 @@ export function createWorkshopEnvironment(materials: WorkshopMaterialFactory): W
     for (const side of [-1, 1])
     {
         ellipsoid(head, 'AvatarEar', [side * 0.215, -0.01, -0.009], [0.037, 0.057, 0.038], REFERENCE_PAINTERLY_PALETTE.background, 'ceramic');
-        ellipsoid(head, 'AvatarEye', [side * 0.068, 0.014, 0.187], [0.014, 0.019, 0.009], REFERENCE_PAINTERLY_PALETTE.charcoal, 'ceramic');
-        ellipsoid(head, 'AvatarRosyCheek', [side * 0.111, -0.039, 0.171], [0.029, 0.016, 0.009], REFERENCE_PAINTERLY_PALETTE.fabric, 'ceramic');
+        ellipsoid(head, 'AvatarEye', [side * 0.068, 0.014, 0.187], [0.014, 0.019, 0.009], REFERENCE_PAINTERLY_PALETTE.charcoal, 'ceramic')
+            .userData.painterlyOutline = { enabled: false };
+        ellipsoid(head, 'AvatarRosyCheek', [side * 0.111, -0.039, 0.171], [0.029, 0.016, 0.009], REFERENCE_PAINTERLY_PALETTE.fabric, 'ceramic')
+            .userData.painterlyOutline = { enabled: false };
     }
     ellipsoid(head, 'AvatarNose', [0, -0.023, 0.199], [0.023, 0.022, 0.022], REFERENCE_PAINTERLY_PALETTE.background, 'ceramic');
     const arms: Group[] = [];
@@ -805,7 +809,7 @@ function mergeStaticAssembly(group: Group): void
             return;
         }
         const material = object.material as MeshStandardMaterial;
-        const key = `${material.uuid}:${object.castShadow}`;
+        const key = `${material.uuid}:${object.castShadow}:${JSON.stringify(object.userData.painterlyOutline ?? null)}`;
         let batch = batches.get(key);
         if (batch === undefined)
         {
@@ -846,6 +850,7 @@ function mergeStaticAssembly(group: Group): void
             merged.castShadow = batch.castShadow;
             merged.receiveShadow = true;
             merged.userData.authoredParts = batch.sources.map((source) => source.name);
+            merged.userData.painterlyOutline = structuredClone(batch.sources[0].userData.painterlyOutline);
             group.add(merged);
             for (const source of batch.sources)
             {
